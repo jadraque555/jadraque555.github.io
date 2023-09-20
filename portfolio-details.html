@@ -51,8 +51,7 @@
 
             <div class="portfolio-details-slider swiper">
               <div class="swiper-wrapper align-items-center">
-
-                <div class="swiper-slide">
+                <!-- <div class="swiper-slide">
                   <img src="assets/img/portfolio/portfolio-details-1.jpg" alt="">
                 </div>
 
@@ -62,7 +61,7 @@
 
                 <div class="swiper-slide">
                   <img src="assets/img/portfolio/portfolio-details-3.jpg" alt="">
-                </div>
+                </div> -->
 
               </div>
               <div class="swiper-pagination"></div>
@@ -73,13 +72,13 @@
           <div class="col-lg-4 portfolio-info">
             <h3>Project information</h3>
             <ul>
-              <li><strong>Category</strong>: Web design</li>
-              <li><strong>Client</strong>: ASU Company</li>
-              <li><strong>Project date</strong>: 01 March, 2020</li>
-              <li><strong>Project URL</strong>: <a href="#">www.example.com</a></li>
+              <li><strong>Category</strong>: <span class="category-label">Web design</span></li>
+              <li><strong>Client</strong>: <span class="company-label">ASU Company</span></li>
+              <li><strong>Project date</strong>: <span class="project-date-label">01 March, 2020</span></li>
+              <li><strong>Project URL</strong>: <span class="project-url-label"><a href="#">www.example.com</a></span></li>
             </ul>
 
-            <p>
+            <p class="company-desc">
               Autem ipsum nam porro corporis rerum. Quis eos dolorem eos itaque inventore commodi labore quia quia. Exercitationem repudiandae officiis neque suscipit non officia eaque itaque enim. Voluptatem officia accusantium nesciunt est omnis tempora consectetur dignissimos. Sequi nulla at esse enim cum deserunt eius.
             </p>
           </div>
@@ -96,7 +95,7 @@
     <!-- You can delete the links only if you purchased the pro version. -->
     <!-- Licensing information: https://bootstrapmade.com/license/ -->
     <!-- Purchase the pro version with working PHP/AJAX contact form: https://bootstrapmade.com/personal-free-resume-bootstrap-template/ -->
-    Designed by <a href="https://bootstrapmade.com/">BootstrapMade</a>
+    <!-- Designed by <a href="https://bootstrapmade.com/">BootstrapMade</a> -->
   </div>
 
   <!-- Vendor JS Files -->
@@ -110,6 +109,113 @@
 
   <!-- Template Main JS File -->
   <script src="assets/js/main.js"></script>
+  
+  <script>
+      let selectedAppName = null;
+
+      const queryString = window.location.search;
+      const urlParams = new URLSearchParams(queryString);
+
+      if(selectedAppName === null) {
+        selectedAppName = urlParams.get("appName");
+      }
+      
+      switch (selectedAppName) {
+        case 'ignitesales':
+          document.querySelector('.portfolio-title').innerHTML = 'Ignitesales'
+          document.querySelector('.category-label').innerHTML = 'Web Application'
+          document.querySelector('.company-label').innerHTML = 'Clariti Consulting'
+          document.querySelector('.project-date-label').innerHTML = 'April 2022'
+          document.querySelector('.project-url-label').innerHTML = '<a href="https://ignitesales.app/">ignitesales.app</a>'
+          document.querySelector('.company-desc').innerHTML = 'Marketing website with extensive contact and company data, sourced mainly from LinkedIn. Features include adding companies and contacts, smart employee filtering, email campaign creation, and contact assignment for campaigns. More functionalities integrated.'
+          document.querySelector('.swiper-wrapper').innerHTML = `
+                <div class="swiper-slide">
+                  <img src="assets/img/portfolio/ignite-dashboard.png" alt="">
+                </div>
+                <div class="swiper-slide">
+                  <img src="assets/img/portfolio/ignite-company.png" alt="">
+                </div>
+                <div class="swiper-slide">
+                  <img src="assets/img/portfolio/ignite-contacts.png" alt="">
+                </div>
+                <div class="swiper-slide">
+                  <img src="assets/img/portfolio/ignite-create-company.png" alt="">
+                </div>
+                <div class="swiper-slide">
+                  <img src="assets/img/portfolio/ignite-campaign.png" alt="">
+                </div>
+                <div class="swiper-slide">
+                  <img src="assets/img/portfolio/ignite-admin-portal.png" alt="">
+                </div>
+          `
+          break;
+        case 'gaemanse': 
+          document.querySelector('.portfolio-title').innerHTML = 'Gaemanse Korean - Pet Care Platform'
+          document.querySelector('.category-label').innerHTML = 'Web Application'
+          document.querySelector('.company-label').innerHTML = 'HL Infin8 Solution Corp.'
+          document.querySelector('.project-date-label').innerHTML = 'January - April, 2020'
+          document.querySelector('.project-url-label').innerHTML = '<a href="http://web1.gaemanse.com/">web1.gaemanse.com</a>'
+          document.querySelector('.company-desc').innerHTML = `Gaemanse Korean is a comprehensive pet care platform that serves as a dedicated website for veterinary clinics in Korea. The platform is designed to provide an array of services and features to pet owners, facilitating efficient management of their pets' well-being. Users can create a customer account, register their pets, access informative videos regarding pet treatments, share experiences, and seek professional consultation from veterinary experts. Additionally, a mobile application complements the web platform, ensuring accessibility and convenience on-the-go.`
+          document.querySelector('.swiper-wrapper').innerHTML = `
+                <div class="swiper-slide">
+                  <img src="assets/img/portfolio/gaemanse.png" alt="">
+                </div>
+          `
+          break;
+        case 'wordspark': 
+          document.querySelector('.portfolio-title').innerHTML = 'Wordspark.ai'
+          document.querySelector('.category-label').innerHTML = 'Web Application'
+          document.querySelector('.company-label').innerHTML = 'Client based in the UK'
+          document.querySelector('.project-date-label').innerHTML = 'May, 2023'
+          document.querySelector('.project-url-label').innerHTML = '<a href="https://wordspark.ai/">wordspark.ai</a>'
+          document.querySelector('.company-desc').innerHTML = `
+            Collaborative project with a UK-based client, utilizing Node.js and Express.js technologies. Wordspark.ai is a dynamic platform that empowers users to effortlessly create engaging, informative, and visually appealing blog posts on any topic. These blog posts come fully formatted with stunning Unsplash pictures, all generated in just 60 seconds or less.
+                <br />  <br />
+                <b>Key Features:</b><br /><br />
+                <ul>
+                  <li>1. Effortless Blog Creation</li>
+                  <li>2. Stunning Visuals with Unsplash</li>
+                  <li>3. Affordable with API Flexibility</li>
+                  <li>4. Secure and User-Controlled</li>
+                </ul>
+          `
+          document.querySelector('.swiper-wrapper').innerHTML = `
+                <div class="swiper-slide">
+                  <img src="assets/img/portfolio/wordspark-home.png" alt="">
+                </div>
+                <div class="swiper-slide">
+                  <img src="assets/img/portfolio/wordspark-create.png" alt="">
+                </div>
+                <div class="swiper-slide">
+                  <img src="assets/img/portfolio/wordspark-create1.png" alt="">
+                </div>
+                <div class="swiper-slide">
+                  <img src="assets/img/portfolio/wordspark-settings.png" alt="">
+                </div>
+          `
+          break;
+        case 'ftdh': 
+          document.querySelector('.portfolio-title').innerHTML = '8990 FTDH'
+          document.querySelector('.category-label').innerHTML = 'Web Application'
+          document.querySelector('.company-label').innerHTML = 'ITECHRAR SOLUTION, INC.'
+          document.querySelector('.project-date-label').innerHTML = '2021'
+          document.querySelector('.project-url-label').innerHTML = '<a href="https://8990ftdh.com/">8990ftdh.com</a>'
+          document.querySelector('.company-desc').innerHTML = `Web application serving as a billing system for Deca Homes residents subscribing to 8990 FTDH's WiFi services. Manages WiFi plans, billing, and subscriber information, and generates reports and receipts. Focuses on efficient billing information management with additional features.`
+          document.querySelector('.swiper-wrapper').innerHTML = `
+                <div class="swiper-slide">
+                  <img src="assets/img/portfolio/ftdh-dashboard.png" alt="">
+                </div>
+                <div class="swiper-slide">
+                  <img src="assets/img/portfolio/ftdh-login.png" alt="">
+                </div>
+          `
+          break;
+        default:
+          break;
+      }
+      
+
+  </script>
 
 </body>
 
