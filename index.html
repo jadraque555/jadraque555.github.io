@@ -22,8 +22,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
-<link rel="stylesheet" href="agent/agent.css">
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/","@pixiv/three-vrm":"https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.3.3/lib/three-vrm.module.min.js"}}</script>
 </head>
 <body>
 <div class="herobg"></div>
@@ -39,8 +37,7 @@
     <a href="#experience">Experience</a>
     <a href="#projects">Projects</a>
     <a href="#skills">Skills</a>
-    <a href="#talk" class="ai-link">Talk to AI</a>
-    <a href="call.html" class="ai-link">Live call</a>
+    <a href="call.html" class="ai-link">Talk to AI</a>
     <a href="#contact" class="cta-sm">Hire me</a>
   </nav>
 </header>
@@ -81,39 +78,6 @@
 </section>
 
 <!-- TALK TO MY AI -->
-<section class="wrap sec" id="talk">
-  <div class="head reveal"><span class="eyebrow">Live demo</span><h2>Talk to my <span class="grad">AI twin</span></h2>
-    <p>An AI trained on my résumé and projects, with a face and a voice. Ask it about my work, skills or experience, by voice or text. It will tell you plainly what it doesn't know.</p></div>
-  <div class="agent reveal" id="agent">
-    <div class="agent-stage">
-      <div class="agent-status" id="agentStatus" data-state="idle" aria-live="polite"><i></i><span>Ready</span></div>
-      <div class="avatar-wrap" id="avatar"></div>
-      <div class="agent-name">Jayson AI</div>
-    </div>
-    <div class="agent-panel">
-      <div class="agent-log" id="agentLog" role="log" aria-live="polite" aria-label="Conversation"></div>
-      <div class="agent-chips" id="agentChips">
-        <button type="button" data-q="What do you build?">What do you build?</button>
-        <button type="button" data-q="Tell me about NativeCamp">NativeCamp</button>
-        <button type="button" data-q="How do you use Claude?">How do you use Claude?</button>
-        <button type="button" data-q="What are you still learning?">What are you still learning?</button>
-        <button type="button" data-q="How can I contact Jayson?">Contact</button>
-      </div>
-      <form class="agent-input" id="agentForm" autocomplete="off">
-        <button type="button" class="mic" id="agentMic" aria-label="Talk to the AI" aria-pressed="false" title="Tap to talk">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
-        </button>
-        <input id="agentText" type="text" maxlength="400" placeholder="Type a question…" aria-label="Type a question">
-        <button type="submit" class="send" id="agentSend">Send</button>
-        <button type="button" class="mute" id="agentMute" aria-label="Turn voice on or off" aria-pressed="false" title="Voice on">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 6a9 9 0 0 1 0 12"/></svg>
-        </button>
-      </form>
-      <p class="agent-note">This is an AI, so answers can be imperfect. Voice input uses your browser's speech service. I don't save conversations. For hiring or pricing, email me.</p>
-    </div>
-  </div>
-</section>
-
 <!-- AI WORK -->
 <section class="wrap sec" id="ai">
   <div class="head reveal"><span class="eyebrow">What I do</span><h2>AI Team Leader &amp; <span class="grad">Solution Architect</span></h2>
@@ -293,9 +257,6 @@
 </main>
 
 <footer class="wrap foot">© <span id="yr">2026</span> Jayson L. Jadraque · Cebu City, Philippines</footer>
-<script>window.AGENT_CONFIG={apiUrl:"",avatarModel:""};</script>
 <script src="main.js"></script>
-<script src="agent/avatar.js"></script>
-<script src="agent/agent.js"></script>
 </body>
 </html>

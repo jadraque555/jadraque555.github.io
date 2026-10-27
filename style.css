@@ -165,3 +165,6 @@ em{font-style:normal}
 .win img{width:100%;height:auto}
 @media(max-width:980px){.studio{grid-template-columns:1fr;padding:24px}}
 @media(max-width:720px){.shots{grid-template-columns:1fr}.win.big{grid-column:auto}}
+
+.nav nav a.ai-link{color:var(--c)}
+.nav nav a.ai-link::before{content:"●";font-size:.55rem;margin-right:6px;vertical-align:.15em}
