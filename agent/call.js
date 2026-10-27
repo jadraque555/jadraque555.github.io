@@ -18,7 +18,7 @@
       muteBtn = $('muteBtn'), endBtn = $('endBtn'), capAI = $('capAI'), capYou = $('capYou'),
       mainTile = $('mainTile'), selfTile = $('selfTile'), meter = $('meter');
 
-  var GREETING = "Hi, thanks for calling! I'm Jayson's AI twin. What would you like to know about my work?";
+  var GREETING = "Hey, thanks for calling! I'm the AI version of Jayson. What would you like to know about my work?";
   var history = [], busy = false, muted = false, micMuted = false, liteMode = !API, aborter = null;
   var speakQ = [], speakingNow = false, streaming = false, timers = [];
   var blocked = false, inCall = false, listening = false, recog = null, restartT = null, noSpeech = 0, litenoted = false;
@@ -128,14 +128,14 @@
 
   /* ---------- lite mode ---------- */
   var LITE = [
-    [/\b(hi|hello|hey|kumusta|musta)\b/, 'happy', "Hi there! Ask me about my work, projects or skills."],
+    [/\b(hi|hello|hey|kumusta|musta)\b/, 'happy', "Hey there! Ask me about my work, projects or skills."],
     [/nativecamp|japan|english platform/, 'excited', "NativeCamp is a live English platform for Japan. I'm a Solutions Architect there and contributed AI coaching features and real-time lesson infrastructure."],
     [/claude|llm|dify|n8n|chatbot|agent|prompt|ai\b/, 'happy', "I lead an AI team building production chatbots and automation with Dify, n8n and the Claude, OpenAI and Gemini APIs, and I use Claude Code every day."],
     [/project|build|built|portfolio|work on/, 'excited', "I built Tubag AI, a tool-calling chat agent, Jay, a local voice assistant, and Inkwell Studio, an AI video pipeline. Plus NativeCamp at work."],
     [/skill|stack|tech|language|python|typescript|react|node/, 'neutral', "Mostly TypeScript, Python and PHP, with Node, Next.js, NestJS, Laravel, PostgreSQL and Docker, plus AI tooling like Dify, n8n and Ollama."],
     [/experience|years|background|who are you|about/, 'neutral', "I have about seven years of experience, three of them leading an AI team as Solutions Architect at Forty Degrees Celsius in Cebu."],
     [/hire|available|contact|email|salary|rate|price|job|work with/, 'serious', "For hiring or pricing, please email me at jadraquejaysonl@gmail.com. I reply personally."],
-    [/real|human|ai\??$|robot|are you/, 'neutral', "I'm Jayson's AI twin, built for this site. I can answer questions about my work."]
+    [/real|human|ai\??$|robot|are you/, 'neutral', "Ha, I'm the AI version of Jayson, built for this site. I can answer questions about my work."]
   ];
   function lite(t) {
     var s = t.toLowerCase();
