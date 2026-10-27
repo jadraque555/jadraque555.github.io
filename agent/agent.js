@@ -22,7 +22,7 @@
       input = el('agentText'), micBtn = el('agentMic'), muteBtn = el('agentMute'),
       chips = el('agentChips'), sendBtn = el('agentSend');
 
-  var GREETING = "Hi! I'm Jayson's AI twin. Ask me about his work, projects or skills, by voice or text.";
+  var GREETING = "Hi! I'm Jayson's AI twin. Ask me about my work, projects or skills, by voice or text.";
   var history = [];
   var busy = false, muted = false, liteMode = !API, aborter = null;
   var speakQ = [], speakingNow = false, streaming = false, timers = [];
@@ -118,19 +118,19 @@
 
   /* ---------- lite mode (no server) ---------- */
   var LITE = [
-    [/\b(hi|hello|hey|kumusta|musta)\b/, 'happy', "Hi there! I'm Jayson's AI twin. Ask about his work, projects or skills."],
-    [/nativecamp|japan|english platform/, 'excited', "NativeCamp is a live English platform for Japan. Jayson is a Solutions Architect there and contributed AI coaching features and real-time lesson infrastructure."],
-    [/claude|llm|dify|n8n|chatbot|agent|prompt|ai\b/, 'happy', "Jayson leads an AI team building production chatbots and automation with Dify, n8n and the Claude, OpenAI and Gemini APIs, and uses Claude Code every day."],
-    [/project|build|built|portfolio|work on/, 'excited', "He built Tubag AI, a tool-calling chat agent, Jay, a local voice assistant, and Inkwell Studio, an AI video pipeline. Plus NativeCamp at work."],
+    [/\b(hi|hello|hey|kumusta|musta)\b/, 'happy', "Hi there! I'm Jayson's AI twin. Ask me about my work, projects or skills."],
+    [/nativecamp|japan|english platform/, 'excited', "NativeCamp is a live English platform for Japan. I'm a Solutions Architect there and contributed AI coaching features and real-time lesson infrastructure."],
+    [/claude|llm|dify|n8n|chatbot|agent|prompt|ai\b/, 'happy', "I lead an AI team building production chatbots and automation with Dify, n8n and the Claude, OpenAI and Gemini APIs, and I use Claude Code every day."],
+    [/project|build|built|portfolio|work on/, 'excited', "I built Tubag AI, a tool-calling chat agent, Jay, a local voice assistant, and Inkwell Studio, an AI video pipeline. Plus NativeCamp at work."],
     [/skill|stack|tech|language|python|typescript|react|node/, 'neutral', "Mostly TypeScript, Python and PHP, with Node, Next.js, NestJS, Laravel, PostgreSQL and Docker, plus AI tooling like Dify, n8n and Ollama."],
-    [/experience|years|background|who are you|about/, 'neutral', "Jayson has about seven years of experience, three of them leading an AI team as Solutions Architect at Forty Degrees Celsius in Cebu."],
-    [/hire|available|contact|email|salary|rate|price|job|work with/, 'serious', "For hiring or pricing, please email Jayson at jadraquejaysonl@gmail.com. He will reply himself."],
-    [/real|human|ai\??$|robot|are you/, 'neutral', "I'm an AI twin of Jayson, built for this site. I can answer questions about his work."]
+    [/experience|years|background|who are you|about/, 'neutral', "I have about seven years of experience, three of them leading an AI team as Solutions Architect at Forty Degrees Celsius in Cebu."],
+    [/hire|available|contact|email|salary|rate|price|job|work with/, 'serious', "For hiring or pricing, please email me at jadraquejaysonl@gmail.com. I reply personally."],
+    [/real|human|ai\??$|robot|are you/, 'neutral', "I'm Jayson's AI twin, built for this site. I can answer questions about my work."]
   ];
   function lite(textIn) {
     var s = textIn.toLowerCase();
     for (var i = 0; i < LITE.length; i++) if (LITE[i][0].test(s)) return { emotion: LITE[i][1], text: LITE[i][2] };
-    return { emotion: 'thinking', text: "I'm in lite mode right now, so I only know the basics. Ask about his experience, projects or skills, or email jadraquejaysonl@gmail.com." };
+    return { emotion: 'thinking', text: "I'm in lite mode right now, so I only know the basics. Ask about my experience, projects or skills, or email me at jadraquejaysonl@gmail.com." };
   }
 
   /* ---------- chat ---------- */
