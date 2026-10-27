@@ -90,13 +90,95 @@
     var to = setTimeout(function () { clearInterval(iv); done(); }, dur);
     timers.push(iv, to);
   }
-  function pump() {
-    if (speakingNow) return;
-    var text = speakQ.shift();
-    if (blocked) return;
-    if (!text) { if (!streaming) { speakingUI(false); listenSoon(300); } return; }
-    speakingNow = true; speakingUI(true); stopListening();
-    var next = function () { speakingNow = false; pump(); };
+  /* ----- natural voice: Gemini speech streamed from /api/tts, played with Web Audio (browser voice is the fallback) ----- */
+  var TTS = cfg.ttsUrl || (API ? API.replace(/\/api\/chat\/?$/, '/api/tts') : '');
+  if (isLocal && params.get('tts') === 'off') TTS = '';
+  var TTS_VOICE = cfg.ttsVoice || (isLocal && params.get('voice')) || '';
+  var ttsFails = 0, outCtx = null, outAn = null, outBuf = null, playHead = 0, liveSrc = [], levelRaf = 0;
+
+  function ensureOut() {
+    if (outCtx) return outCtx;
+    try {
+      outCtx = new (window.AudioContext || window.webkitAudioContext)();
+      outAn = outCtx.createAnalyser(); outAn.fftSize = 512;
+      outAn.connect(outCtx.destination);
+      outBuf = new Uint8Array(outAn.fftSize);
+    } catch (e) { outCtx = null; }
+    return outCtx;
+  }
+  function ttsOn() { return TTS && ttsFails < 2 && !muted && ensureOut(); }
+
+  function fetchSpeech(text) {                                      // starts downloading right away, so it's ready when its turn comes
+    var job = { chunks: [], done: false, failed: false, wake: null, ctrl: new AbortController(), got: false };
+    var ping = function () { if (job.wake) { var w = job.wake; job.wake = null; w(); } };
+    var timer = setTimeout(function () { if (!job.got) { job.failed = true; job.ctrl.abort(); ping(); } }, 8000);
+    fetch(TTS, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: job.ctrl.signal,
+                 body: JSON.stringify({ text: text, voice: TTS_VOICE || undefined }) })
+      .then(function (r) {
+        if (!r.ok || !r.body) throw new Error(String(r.status));
+        var reader = r.body.getReader(), left = null;
+        function step() {
+          return reader.read().then(function (x) {
+            if (x.done) { job.done = true; ping(); return; }
+            var u8 = x.value;
+            if (left !== null) { var m = new Uint8Array(u8.length + 1); m[0] = left; m.set(u8, 1); u8 = m; left = null; }
+            if (u8.length % 2) { left = u8[u8.length - 1]; u8 = u8.subarray(0, u8.length - 1); }
+            var n = u8.length >> 1, f = new Float32Array(n), dv = new DataView(u8.buffer, u8.byteOffset, u8.length);
+            for (var i = 0; i < n; i++) f[i] = dv.getInt16(i * 2, true) / 32768;
+            if (n) { job.got = true; clearTimeout(timer); job.chunks.push(f); ping(); }
+            return step();
+          });
+        }
+        return step();
+      })
+      .catch(function () { if (!job.got) job.failed = true; job.done = true; ping(); })
+      .then(function () { clearTimeout(timer); });
+    return job;
+  }
+
+  function levelLoop() {
+    if (levelRaf) return;
+    (function tick() {
+      if (!outCtx || outCtx.currentTime > playHead + 0.15) { levelRaf = 0; av.setLevel(null); return; }
+      outAn.getByteTimeDomainData(outBuf);
+      var sum = 0; for (var i = 0; i < outBuf.length; i++) { var v = (outBuf[i] - 128) / 128; sum += v * v; }
+      av.setLevel(Math.min(1, Math.sqrt(sum / outBuf.length) * 5));
+      levelRaf = requestAnimationFrame(tick);
+    })();
+  }
+  function audioLeftMs() { return outCtx ? Math.max(0, (playHead - outCtx.currentTime) * 1000) : 0; }
+
+  async function playJob(item, next) {                              // schedule streamed chunks back to back, gapless
+    var job = item.job, ctx = outCtx, idx = 0, scheduled = false;
+    if (ctx.state !== 'running') { try { await Promise.race([ctx.resume(), new Promise(function (r) { setTimeout(r, 250); })]); } catch (e) {} }
+    if (ctx.state !== 'running') return soundBlocked(item);
+    for (;;) {
+      if (job.ctrl.signal.aborted && !job.got) break;
+      while (idx < job.chunks.length) {
+        var f = job.chunks[idx++], buf = ctx.createBuffer(1, f.length, 24000);
+        buf.copyToChannel(f, 0);
+        var src = ctx.createBufferSource(); src.buffer = buf; src.connect(outAn);
+        var at = Math.max(ctx.currentTime + 0.04, playHead);
+        src.start(at); playHead = at + buf.duration; scheduled = true;
+        liveSrc.push(src); src.onended = function () { var k = liveSrc.indexOf(this); if (k >= 0) liveSrc.splice(k, 1); };
+        levelLoop();
+      }
+      if (job.done) break;
+      await new Promise(function (r) { job.wake = r; });
+    }
+    if (!scheduled) {                                               // TTS failed before any audio: use the browser voice for this sentence
+      ttsFails++;
+      return speakBrowser(item.text, next);
+    }
+    next();                                                         // everything is queued on the audio clock; the next sentence follows seamlessly
+  }
+
+  function soundBlocked(item) {
+    speakQ.unshift(item); speakingNow = false; blocked = true;
+    speakingUI(false); setStatus('idle', 'Tap to start sound'); $('tapStart').hidden = false;
+  }
+
+  function speakBrowser(text, next) {
     if (muted || !synth) return simulate(text, next);
     var u = new SpeechSynthesisUtterance(text);
     if (voice) { u.voice = voice; u.lang = voice.lang; } else u.lang = 'en-US';
@@ -109,19 +191,36 @@
     var end = function () { if (iv) clearInterval(iv); next(); };
     u.onend = end;
     u.onerror = function (e) {
-      if (e && e.error === 'not-allowed') {                       // browser wants a tap before it plays sound
-        if (iv) clearInterval(iv);
-        speakQ.unshift(text); speakingNow = false; blocked = true;
-        speakingUI(false); setStatus('idle', 'Tap to start sound'); $('tapStart').hidden = false;
-        return;
-      }
+      if (e && e.error === 'not-allowed') { if (iv) clearInterval(iv); soundBlocked({ text: text, job: null }); return; }
       end();
     };
     synth.speak(u);
   }
-  function enqueue(text) { text = text.replace(/\s+/g, ' ').trim(); if (text) { speakQ.push(text); pump(); } }
+
+  function pump() {
+    if (speakingNow || blocked) return;
+    var item = speakQ.shift();
+    if (!item) {
+      if (streaming) return;
+      var left = audioLeftMs();
+      if (left > 30) { speakingNow = true; timers.push(setTimeout(function () { speakingNow = false; pump(); }, left)); return; }   // let the audio finish
+      speakingUI(false); listenSoon(300); return;
+    }
+    speakingNow = true; speakingUI(true); stopListening();
+    var next = function () { speakingNow = false; pump(); };
+    if (item.job) playJob(item, next); else speakBrowser(item.text, next);
+  }
+  function enqueue(text) {
+    text = text.replace(/\s+/g, ' ').trim();
+    if (!text) return;
+    speakQ.push({ text: text, job: ttsOn() ? fetchSpeech(text) : null });
+    pump();
+  }
   function stopSpeaking() {
+    speakQ.forEach(function (i) { if (i.job) { i.job.ctrl.abort(); i.job.done = true; if (i.job.wake) i.job.wake(); } });
     speakQ = []; speakingNow = false; clearTimers();
+    liveSrc.forEach(function (s) { try { s.onended = null; s.stop(); } catch (e) {} }); liveSrc = [];
+    if (outCtx) playHead = 0;
     if (synth) synth.cancel();
     av.setLevel(null); setTalking(false);
   }
@@ -298,6 +397,7 @@
   async function join() {
     // The click that got us here unlocks audio output; also ask for the mic once.
     if (synth) { try { synth.cancel(); } catch (e) {} }
+    ttsFails = 0; ensureOut();
     var micOk = false;
     if (SR && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       try {
@@ -328,6 +428,7 @@
   function leave() {
     inCall = false; stopListening(); stopSpeaking(); abortCurrent();
     clearInterval(tickT); cancelAnimationFrame(rafId);
+    if (outCtx) { try { outCtx.close(); } catch (e) {} outCtx = null; playHead = 0; liveSrc = []; }
     if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
     if (actx) { try { actx.close(); } catch (e) {} actx = null; }
     var secs = Math.floor((Date.now() - startedAt) / 1000);
@@ -340,6 +441,7 @@
   $('tapStart').addEventListener('click', function () {
     $('tapStart').hidden = true; blocked = false;
     if (synth) { try { synth.cancel(); } catch (e) {} }
+    if (outCtx) { try { outCtx.resume(); } catch (e) {} }
     pump();
   });
   $('rejoinBtn').addEventListener('click', join);
@@ -381,5 +483,6 @@
     if (k === 'm') toggleMic(); else if (k === 'c') ccBtn.click(); else if (k === 't') chatBtn.click();
   });
   join();                                                        // no lobby: the call starts as soon as the page opens
+  if (isLocal) window.__callDebug = function () { return { ttsUrl: TTS, ttsFails: ttsFails, ctx: outCtx && outCtx.state, ahead: outCtx ? +(playHead - outCtx.currentTime).toFixed(2) : null, blocked: blocked }; };
   window.addEventListener('pagehide', function () { stopSpeaking(); if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); });
 })();
