@@ -145,6 +145,20 @@
     return job;
   }
 
+  function fetchStatic(url) {                                       // a pre-recorded clip (the greeting): no API call, no quota
+    var job = { chunks: [], done: false, failed: false, wake: null, ctrl: new AbortController(), got: false };
+    var ping = function () { if (job.wake) { var w = job.wake; job.wake = null; w(); } };
+    fetch(url, { signal: job.ctrl.signal })
+      .then(function (r) { if (!r.ok) throw new Error(String(r.status)); return r.arrayBuffer(); })
+      .then(function (buf) {
+        var n = (buf.byteLength - 44) >> 1, f = new Float32Array(n), dv = new DataView(buf, 44);   // 44-byte WAV header, 16-bit mono 24 kHz
+        for (var i = 0; i < n; i++) f[i] = dv.getInt16(i * 2, true) / 32768;
+        job.chunks.push(f); job.got = true; job.done = true; ping();
+      })
+      .catch(function () { job.failed = true; job.done = true; ping(); });
+    return job;
+  }
+
   function levelLoop() {
     if (levelRaf) return;
     (function tick() {
@@ -224,7 +238,10 @@
   function enqueue(text) {
     text = text.replace(/\s+/g, ' ').trim();
     if (!text) return;
-    speakQ.push({ text: text, job: ttsOn() ? fetchSpeech(text) : null });
+    var job = null;
+    if (text === GREETING && !muted && ensureOut()) job = fetchStatic('agent/greeting.wav');
+    else if (ttsOn()) job = fetchSpeech(text);
+    speakQ.push({ text: text, job: job });
     pump();
   }
   function stopSpeaking() {
