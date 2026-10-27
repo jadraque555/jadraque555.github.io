@@ -9,7 +9,7 @@
   var API = cfg.apiUrl || '';
   var isLocal = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
   var params = new URLSearchParams(location.search);
-  if (isLocal && params.get('agentApi')) API = params.get('agentApi');
+  if (isLocal) API = params.get('agentApi') || API || 'http://localhost:8787/api/chat';   // local dev: use the local API by default
 
   var $ = function (id) { return document.getElementById(id); };
   var root = $('agent');
