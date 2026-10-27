@@ -166,5 +166,14 @@ em{font-style:normal}
 @media(max-width:980px){.studio{grid-template-columns:1fr;padding:24px}}
 @media(max-width:720px){.shots{grid-template-columns:1fr}.win.big{grid-column:auto}}
 
-.nav nav a.ai-link{color:var(--c)}
-.nav nav a.ai-link::before{content:"●";font-size:.55rem;margin-right:6px;vertical-align:.15em}
+
+/* "Talk to my AI" call-to-action (nav pill + hero button) */
+.nav nav a.ai-link{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:99px;background:#6ee7a0;color:#06130d;font-weight:700;box-shadow:0 0 0 0 #6ee7a066;animation:ai-glow 2.4s infinite}
+.nav nav a.ai-link::before{content:"";width:8px;height:8px;border-radius:50%;background:#06130d;animation:ai-dot 1.4s infinite}
+.nav nav a.ai-link:hover{background:#9af2bf;color:#06130d}
+.btn.talk{background:#6ee7a0;color:#06130d;border-color:transparent;gap:10px;font-size:1.02rem;padding:14px 28px;box-shadow:0 10px 34px -8px #6ee7a0aa;animation:ai-glow 2.4s infinite}
+.btn.talk svg{width:20px;height:20px}
+.btn.talk:hover{transform:translateY(-2px);background:#9af2bf}
+@keyframes ai-glow{70%{box-shadow:0 0 0 12px #6ee7a000}100%{box-shadow:0 0 0 0 #6ee7a000}}
+@keyframes ai-dot{50%{opacity:.3}}
+@media(prefers-reduced-motion:reduce){.nav nav a.ai-link,.btn.talk,.nav nav a.ai-link::before{animation:none}}
