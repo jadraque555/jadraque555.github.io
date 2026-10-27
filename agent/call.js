@@ -56,7 +56,8 @@
     var photoUrl = cfg.avatarPhoto || '';
     if (isLocal && params.get('avatar')) photoUrl = params.get('avatar') === 'photo' ? (photoUrl || 'img/avatar-portrait.jpg') : '';
     if (!photoUrl || !window.createPhotoAvatar) return buildVector();
-    window.createPhotoAvatar($('avatar'), { url: photoUrl })
+    var noBg = isLocal && params.get('bg') === 'off';
+    window.createPhotoAvatar($('avatar'), { url: photoUrl, bg: noBg ? '' : cfg.avatarBg, matte: noBg ? '' : cfg.avatarMatte })
       .then(function (pa) { impl = pa; mainTile.classList.add('photo'); impl.setEmotion(lastEmotion); impl.setState(lastState); })
       .catch(function (err) { if (window.console) console.warn('Portrait avatar unavailable:', err && err.message); buildVector(); });
   }
