@@ -9,7 +9,7 @@
   var LM = {
     size: 900,
     eyes: [{ x: 399, y: 181, rx: 40, ry: 14 }, { x: 533, y: 182, rx: 40, ry: 14 }],
-    mouth: { cx: 465, top: 317, rx: 50, maxDrop: 20 },     // top = row just under the upper teeth; the jaw moves down from here
+    mouth: { cx: 465, top: 317, lip: 327, rx: 50, maxDrop: 18 },  // top = row just under the upper teeth, lip = where the lower lip begins; the jaw moves down from there
     jaw: { x0: 366, x1: 566, full: 400, end: 482 },         // columns warped, row where the full drop fades out, row where it stops
     brow: { x0: 366, x1: 566, y0: 146, peak: 157, y1: 173 },// band lifted for eyebrow motion
     gazeClip: { rx: 30, ry: 8, dy: 1.5 },                   // the visible eye opening, where the iris may move
@@ -79,16 +79,22 @@
     var running = true, raf = 0, last = now0;
 
     /* ---- warp a horizontal band of the photo up/down (strips), feathered at both sides ---- */
-    function warpBand(x0, x1, yA, yB, shiftAt) {
+    function warpBand(x0, x1, yA, yB, shiftAt, fadeRows, alpha) {
       og.clearRect(0, 0, N, N);
       var sw = x1 - x0;
-      for (var y = yA; y < yB; y += 2) og.drawImage(src, x0, y, sw, 2, x0, y + shiftAt(y), sw, 3.5);
+      for (var y = yA; y < yB; y += 2) {
+        og.globalAlpha = fadeRows ? clamp((y - yA) / fadeRows, 0, 1) : 1;                // soft top edge, so no hard cut line
+        og.drawImage(src, x0, y, sw, 2, x0, y + shiftAt(y), sw, 3.5);
+      }
+      og.globalAlpha = 1;
       og.globalCompositeOperation = 'destination-in';
       var fg = og.createLinearGradient(x0, 0, x1, 0);
       fg.addColorStop(0, 'rgba(0,0,0,0)'); fg.addColorStop(0.16, '#000'); fg.addColorStop(0.84, '#000'); fg.addColorStop(1, 'rgba(0,0,0,0)');
       og.fillStyle = fg; og.fillRect(0, 0, N, N);
       og.globalCompositeOperation = 'source-over';
+      wg.globalAlpha = alpha == null ? 1 : alpha;
       wg.drawImage(ov, 0, 0);
+      wg.globalAlpha = 1;
     }
 
     function drawBrows(b) {                                         // + lifts the brow band, - lowers it
@@ -111,26 +117,29 @@
     }
 
     function drawMouth(d) {
-      var m = LM.mouth, j = LM.jaw;
-      // the opening the jaw leaves: a lens shape, dark with a little tongue
-      var depth = d * 1.25;
-      var gr = wg.createLinearGradient(0, m.top, 0, m.top + depth);
-      gr.addColorStop(0, '#1b0809'); gr.addColorStop(0.6, '#33100f'); gr.addColorStop(1, '#4b1b1c');
+      var m = LM.mouth, j = LM.jaw, lip = m.lip;
+      var ta = 1 - smooth((d - 3) / 8);                                // 1 = lower teeth still show, 0 = hidden in shadow
+      var bottom = m.top + d + 1 + (1 - ta) * (lip - m.top);          // thin gap on a small opening, deep only when the lower teeth fade
+      // the inside of the mouth: covers the lower teeth (they sit in shadow) from the upper teeth down to the lower lip
+      wg.save();
+      wg.beginPath(); wg.rect(0, m.top - 1, N, N); wg.clip();
+      var gr = wg.createLinearGradient(0, m.top, 0, bottom + 2);
+      gr.addColorStop(0, '#26100f'); gr.addColorStop(0.5, '#3d1718'); gr.addColorStop(1, '#5a2427');
       wg.fillStyle = gr;
-      wg.beginPath();
-      wg.moveTo(m.cx - m.rx, m.top - 0.5); wg.lineTo(m.cx + m.rx, m.top - 0.5);
-      wg.bezierCurveTo(m.cx + m.rx * 0.78, m.top + depth, m.cx - m.rx * 0.78, m.top + depth, m.cx - m.rx, m.top - 0.5);
-      wg.fill();
-      if (d > 6) {
-        var tg = wg.createRadialGradient(m.cx, m.top + d * 0.95, 1, m.cx, m.top + d * 0.95, m.rx * 0.5);
-        tg.addColorStop(0, 'rgba(190,96,100,.85)'); tg.addColorStop(1, 'rgba(150,70,76,0)');
-        wg.fillStyle = tg; wg.fillRect(m.cx - m.rx * 0.5, m.top + d * 0.45, m.rx, d * 0.9);
+      wg.beginPath(); wg.ellipse(m.cx, m.top, m.rx - 3, bottom - m.top, 0, 0, Math.PI * 2); wg.fill();
+      if (d > 7) {                                                     // a hint of tongue on a wide opening
+        var ty = bottom - 2, tr = wg.createRadialGradient(m.cx, ty, 1, m.cx, ty, m.rx * 0.55);
+        tr.addColorStop(0, 'rgba(188,94,100,.8)'); tr.addColorStop(1, 'rgba(150,70,76,0)');
+        wg.fillStyle = tr; wg.fillRect(m.cx - m.rx * 0.6, bottom - 10, m.rx * 1.2, 10);
       }
-      // jaw: strips pushed down, strongest at the lower lip, fading out toward the neck
-      warpBand(j.x0, j.x1, m.top, j.end, function (y) {
+      wg.restore();
+      // lower teeth ride down with the jaw on a small opening and fade into shadow as it widens
+      if (ta > 0.02) warpBand(m.cx - 58, m.cx + 58, m.top, lip, function () { return d * 0.96; }, 4, ta);
+      // jaw: the lower lip and chin slide down, strongest at the lip, fading out toward the neck
+      warpBand(j.x0, j.x1, lip, j.end, function (y) {
         var t = y < j.full ? 0 : (y - j.full) / (j.end - j.full);
         return d * (1 - smooth(t));
-      });
+      }, 6);
     }
 
     function drawLids(p) {                                          // blink: skin texture from above the eye, stretched down
