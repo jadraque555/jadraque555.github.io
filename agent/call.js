@@ -180,6 +180,10 @@
       logEl.scrollTop = logEl.scrollHeight;
       var rest = p.body.slice(spoken), m;
       while ((m = rest.match(/^[\s\S]*?[.!?…]+["')\]]*(?=\s)/))) { enqueue(m[0]); spoken += m[0].length; rest = p.body.slice(spoken); }
+      if (!spoken && rest.length > 45) {                                // first words out fast: speak the first clause
+        var c1 = rest.slice(25).search(/[,;:\u2014-]\s/);
+        if (c1 >= 0) { enqueue(rest.slice(0, 25 + c1 + 1)); spoken += 25 + c1 + 1; rest = p.body.slice(spoken); }
+      }
       if (rest.length > 170) { var cut = rest.lastIndexOf(','); if (cut > 60) { enqueue(rest.slice(0, cut + 1)); spoken += cut + 1; } }
     }
     try {
@@ -238,12 +242,14 @@
     if (!canListen() || listening) return;
     var r = recog = new SR();
     r.lang = 'en-US'; r.interimResults = true; r.continuous = false; r.maxAlternatives = 1;
-    var finalText = '', fatal = false;
+    var finalText = '', fatal = false, endT = null;
     r.onstart = function () { listening = true; micBtn.classList.add('listening'); av.setState('listening'); setStatus('listening', 'Listening…'); };
     r.onresult = function (e) {
       var interim = '';
       for (var i = e.resultIndex; i < e.results.length; i++) { var x = e.results[i]; if (x.isFinal) finalText += x[0].transcript; else interim += x[0].transcript; }
       setYou((finalText + ' ' + interim).trim()); noSpeech = 0;
+      clearTimeout(endT);                                              // no new words for ~0.9s: they're done talking
+      endT = setTimeout(function () { if (recog === r) { try { r.stop(); } catch (e) {} } }, 900);
     };
     r.onerror = function (e) {
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { fatal = true; note('The microphone is blocked. Allow it in your browser, or type in the chat.'); micBtn.setAttribute('aria-pressed', 'true'); micMuted = true; }
@@ -252,8 +258,9 @@
     };
     r.onend = function () {
       if (recog !== r) return;
+      clearTimeout(endT);
       recog = null; listening = false; micBtn.classList.remove('listening');
-      var t = finalText.trim();
+      var t = (finalText || '').trim();
       if (t) { ask(t); return; }
       setYou(''); av.setState('idle');
       if (!fatal && inCall) { if (!busy) setStatus('listening', 'Listening…'); listenSoon(noSpeech > 3 ? 1500 : 250); }
