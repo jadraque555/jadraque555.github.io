@@ -17,7 +17,42 @@
   if (!root || typeof window.createAvatar !== 'function') return;
 
   var el = function (id) { return document.getElementById(id); };
-  var av = window.createAvatar(el('avatar'));
+  var avatarEl = el('avatar');
+  var svgAv = window.createAvatar(avatarEl);
+  var impl = svgAv, lastState = 'idle', lastEmotion = 'neutral';
+  // One avatar interface for the rest of the file; the 3D model replaces the SVG face when (and if) it loads.
+  var av = {
+    setState: function (s) { lastState = s; impl.setState(s); },
+    setEmotion: function (e) { lastEmotion = e; impl.setEmotion(e); },
+    pulse: function (x) { impl.pulse(x); },
+    setLevel: function (v) { impl.setLevel(v); },
+    pause: function () { impl.pause && impl.pause(); },
+    resume: function () { impl.resume && impl.resume(); }
+  };
+  var modelUrl = cfg.avatarModel || '';
+  if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
+    var qm = new URLSearchParams(location.search).get('agentModel');
+    if (qm) modelUrl = qm;
+  }
+  if (modelUrl) {
+    var layer = document.createElement('div');
+    layer.className = 'avatar3d';
+    avatarEl.appendChild(layer);
+    import('./avatar3d.js')
+      .then(function (m) { return m.createAvatar3D(layer, { url: modelUrl, extent: cfg.avatarExtent, lookDown: cfg.avatarLookDown, rotateY: cfg.avatarRotateY }); })
+      .then(function (a3) {
+        svgAv.destroy();
+        impl = a3;
+        avatarEl.classList.add('has3d');
+        layer.classList.add('on');
+        impl.setEmotion(lastEmotion); impl.setState(lastState);
+        window.__avatar3d = a3;
+      })
+      .catch(function (err) {
+        layer.remove();                                                 // stay on the SVG face
+        if (window.console) console.warn('3D avatar unavailable, using the 2D face:', err && err.message);
+      });
+  }
   var statusEl = el('agentStatus'), logEl = el('agentLog'), form = el('agentForm'),
       input = el('agentText'), micBtn = el('agentMic'), muteBtn = el('agentMute'),
       chips = el('agentChips'), sendBtn = el('agentSend');
