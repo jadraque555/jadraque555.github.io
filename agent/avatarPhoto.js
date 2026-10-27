@@ -48,6 +48,8 @@
     var ov = document.createElement('canvas'); ov.width = N; ov.height = N; var og = ov.getContext('2d');
     var wk = document.createElement('canvas'); wk.width = wk.height = N; var wg = wk.getContext('2d');
 
+    var bgc = document.createElement('canvas'); bgc.width = bgc.height = 24; bgc.getContext('2d').drawImage(img, 0, 0, 24, 24);
+
     var canvas = document.createElement('canvas');
     canvas.className = 'photoav'; canvas.setAttribute('role', 'img'); canvas.setAttribute('aria-label', 'Animated portrait of Jayson');
     container.appendChild(canvas);
@@ -140,17 +142,24 @@
       if (d > 0.6) drawMouth(d);
       drawLids(lidAmt);
 
-      // frame it: cover the canvas, face a little above centre, head sways around the neck
-      var sc = Math.max(cw / N, ch / N) * (1.0 + S.lean);
-      var ox = cw / 2 - LM.focus.x * sc, oy = ch * 0.44 - LM.focus.y * sc;
-      ox = clamp(ox, cw - N * sc, 0); oy = clamp(oy, ch - N * sc, 0);
+      // fade the photo's left and right edges so it melts into the blurred backdrop
+      wg.globalCompositeOperation = 'destination-in';
+      var ef = wg.createLinearGradient(0, 0, N, 0);
+      ef.addColorStop(0, 'rgba(0,0,0,0)'); ef.addColorStop(0.07, '#000'); ef.addColorStop(0.93, '#000'); ef.addColorStop(1, 'rgba(0,0,0,0)');
+      wg.fillStyle = ef; wg.fillRect(0, 0, N, N);
+      wg.globalCompositeOperation = 'source-over';
+
+      // frame it: the WHOLE portrait fits inside the tile (head and shoulders always visible); the sides are a blurred copy
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+      g.globalAlpha = 1; g.drawImage(bgc, 0, 0, cw, ch);
+      g.fillStyle = 'rgba(10,12,20,.28)'; g.fillRect(0, 0, cw, ch);
+      var sc = Math.min(cw / N, ch / N) * (0.97 + S.lean);
+      var ox = (cw - N * sc) / 2, oy = ch - N * sc - ch * 0.015;
       var sway = Math.sin(t * 0.7) * 1.3 * dpr, bob = Math.sin(t * 1.1) * 1.2 * dpr + S.open * 2.2 * dpr;
       var rot = Math.sin(t * 0.5) * 0.004 + S.tilt + (state === 'thinking' ? -0.008 : 0);
       var px = ox + LM.pivot.x * sc, py = oy + LM.pivot.y * sc;
-      g.setTransform(1, 0, 0, 1, 0, 0);
-      g.clearRect(0, 0, cw, ch);
       g.translate(px + sway, py + bob); g.rotate(rot); g.translate(-px, -py);
-      g.imageSmoothingQuality = 'high';
       g.drawImage(wk, ox, oy, N * sc, N * sc);
     }
     raf = requestAnimationFrame(frame);
