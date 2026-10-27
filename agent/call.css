@@ -83,3 +83,5 @@ body.call{overflow:hidden;background:#05060a}
   .captions{bottom:90px}
 }
 @media(prefers-reduced-motion:reduce){.rec,.wave i,.ctl.listening svg{animation:none!important}}
+
+.tapstart{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);z-index:7;display:inline-flex;align-items:center;gap:10px;padding:15px 28px;border:0;border-radius:99px;cursor:pointer;font:600 1.05rem Inter;color:#06130d;background:#6ee7a0;box-shadow:0 14px 40px -8px #000,0 0 0 8px #6ee7a033;animation:ai-glow 2.4s infinite}

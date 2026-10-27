@@ -21,12 +21,10 @@
   var GREETING = "Hi, thanks for calling! I'm Jayson's AI twin. What would you like to know about my work?";
   var history = [], busy = false, muted = false, micMuted = false, liteMode = !API, aborter = null;
   var speakQ = [], speakingNow = false, streaming = false, timers = [];
-  var inCall = false, listening = false, recog = null, restartT = null, noSpeech = 0, litenoted = false;
+  var blocked = false, inCall = false, listening = false, recog = null, restartT = null, noSpeech = 0, litenoted = false;
   var stream = null, actx = null, analyser = null, levelBuf = null, startedAt = 0, tickT = null, rafId = 0;
 
   /* ---------- avatar (SVG now, 3D model when configured) ---------- */
-  var lobbyAv = window.createAvatar($('lobbyAvatar'));
-  lobbyAv.setEmotion('happy');
   var svgAv = null, impl = null, lastState = 'idle', lastEmotion = 'happy';
   var av = {
     setState: function (s) { lastState = s; impl && impl.setState(s); },
@@ -95,6 +93,7 @@
   function pump() {
     if (speakingNow) return;
     var text = speakQ.shift();
+    if (blocked) return;
     if (!text) { if (!streaming) { speakingUI(false); listenSoon(300); } return; }
     speakingNow = true; speakingUI(true); stopListening();
     var next = function () { speakingNow = false; pump(); };
@@ -108,7 +107,16 @@
       timers.push(setTimeout(function () { if (!gotBoundary) iv = setInterval(function () { av.pulse(0.8); }, 180); }, 450));
     };
     var end = function () { if (iv) clearInterval(iv); next(); };
-    u.onend = end; u.onerror = end;
+    u.onend = end;
+    u.onerror = function (e) {
+      if (e && e.error === 'not-allowed') {                       // browser wants a tap before it plays sound
+        if (iv) clearInterval(iv);
+        speakQ.unshift(text); speakingNow = false; blocked = true;
+        speakingUI(false); setStatus('idle', 'Tap to start sound'); $('tapStart').hidden = false;
+        return;
+      }
+      end();
+    };
     synth.speak(u);
   }
   function enqueue(text) { text = text.replace(/\s+/g, ' ').trim(); if (text) { speakQ.push(text); pump(); } }
@@ -281,7 +289,6 @@
   /* ---------- call lifecycle ---------- */
   function fmt(s) { return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }
   async function join() {
-    $('joinBtn').disabled = true;
     // The click that got us here unlocks audio output; also ask for the mic once.
     if (synth) { try { synth.cancel(); } catch (e) {} }
     var micOk = false;
@@ -291,8 +298,8 @@
         micOk = true;
       } catch (e) { stream = null; }
     }
-    lobbyAv.destroy && lobbyAv.destroy(); $('lobbyAvatar').innerHTML = '';
-    $('lobby').hidden = true; $('callUI').hidden = false; root.dataset.phase = 'call';
+    $('ended').hidden = true; $('callUI').hidden = false; root.dataset.phase = 'call';
+    $('avatar').innerHTML = '';
     inCall = true; startedAt = Date.now(); busy = false;
     buildAvatar();
     logEl.innerHTML = ''; history = []; litenoted = false; capAI.textContent = ''; capYou.textContent = '';
@@ -323,8 +330,12 @@
     streaming = false; busy = false; speakQ = []; speakingNow = false;
   }
 
-  $('joinBtn').addEventListener('click', join);
-  $('rejoinBtn').addEventListener('click', function () { location.reload(); });
+  $('tapStart').addEventListener('click', function () {
+    $('tapStart').hidden = true; blocked = false;
+    if (synth) { try { synth.cancel(); } catch (e) {} }
+    pump();
+  });
+  $('rejoinBtn').addEventListener('click', join);
   endBtn.addEventListener('click', leave);
 
   function toggleMic() {
@@ -362,5 +373,6 @@
     var k = e.key.toLowerCase();
     if (k === 'm') toggleMic(); else if (k === 'c') ccBtn.click(); else if (k === 't') chatBtn.click();
   });
+  join();                                                        // no lobby: the call starts as soon as the page opens
   window.addEventListener('pagehide', function () { stopSpeaking(); if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); });
 })();
