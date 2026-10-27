@@ -26,7 +26,7 @@
   var history = [];
   var busy = false, muted = false, liteMode = !API, aborter = null;
   var speakQ = [], speakingNow = false, streaming = false, timers = [];
-  var recog = null, listening = false;
+  var recog = null, listening = false, litenoted = false;
 
   /* ---------- UI helpers ---------- */
   function setStatus(kind, text) {
@@ -231,8 +231,11 @@
       bubble.classList.remove('typing');
       bubble.textContent = a.text;
       av.setEmotion(a.emotion);
-      note(rate ? 'Lots of visitors right now, so I am in lite mode for a bit.'
-                : (wasLive || API ? 'The AI server is offline, so I am answering in lite mode.' : 'Lite mode: answers are pre-written. The live AI is not connected yet.'));
+      if (!litenoted) {
+        litenoted = true;
+        note(rate ? 'Lots of visitors right now, so I am in lite mode for a bit.'
+                  : (wasLive || API ? 'The AI server is offline, so I am answering in lite mode.' : 'Lite mode: answers are pre-written. The live AI is not connected yet.'));
+      }
       streaming = true; speakQ = [];
       enqueue(a.text);
       history.push({ role: 'assistant', content: a.text });
@@ -303,7 +306,7 @@
   addMsg('ai', GREETING);
   av.setEmotion('happy');
   idleStatus();
-  if (!API) note('Lite mode: answers are pre-written. The live AI is not connected yet.');
+  if (!API) { litenoted = true; note('Lite mode: answers are pre-written. The live AI is not connected yet.'); }
 
   // pause the animation while the section is off-screen
   if ('IntersectionObserver' in window && av.pause) {
