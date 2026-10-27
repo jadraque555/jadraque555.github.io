@@ -32,7 +32,7 @@
     pulse: function (x) { impl && impl.pulse(x); },
     setLevel: function (v) { impl && impl.setLevel(v); }
   };
-  function buildAvatar() {
+  function buildVector() {                                          // 2D drawn face, upgraded to a 3D model when one is configured
     var avatarEl = $('avatar');
     svgAv = window.createAvatar(avatarEl);
     impl = svgAv;
@@ -51,6 +51,14 @@
         impl.setEmotion(lastEmotion); impl.setState(lastState);
       })
       .catch(function (err) { layer.remove(); if (window.console) console.warn('3D avatar unavailable:', err && err.message); });
+  }
+  function buildAvatar() {                                          // preferred: the animated real portrait; fallbacks: 3D model, then drawn face
+    var photoUrl = cfg.avatarPhoto || '';
+    if (isLocal && params.get('avatar')) photoUrl = params.get('avatar') === 'photo' ? (photoUrl || 'img/avatar-portrait.jpg') : '';
+    if (!photoUrl || !window.createPhotoAvatar) return buildVector();
+    window.createPhotoAvatar($('avatar'), { url: photoUrl })
+      .then(function (pa) { impl = pa; mainTile.classList.add('photo'); impl.setEmotion(lastEmotion); impl.setState(lastState); })
+      .catch(function (err) { if (window.console) console.warn('Portrait avatar unavailable:', err && err.message); buildVector(); });
   }
 
   /* ---------- UI helpers ---------- */
@@ -434,6 +442,7 @@
     var secs = Math.floor((Date.now() - startedAt) / 1000);
     $('endedTime').textContent = 'Call length ' + fmt(secs) + '. Thanks for stopping by.';
     $('callUI').hidden = true; $('ended').hidden = false; root.dataset.phase = 'ended';
+    if (impl && impl.destroy) impl.destroy(); impl = null; mainTile.classList.remove('photo');
     $('avatar').innerHTML = '';
     streaming = false; busy = false; speakQ = []; speakingNow = false;
   }

@@ -85,3 +85,9 @@ body.call{overflow:hidden;background:#05060a}
 @media(prefers-reduced-motion:reduce){.rec,.wave i,.ctl.listening svg{animation:none!important}}
 
 .tapstart{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);z-index:7;display:inline-flex;align-items:center;gap:10px;padding:15px 28px;border:0;border-radius:99px;cursor:pointer;font:600 1.05rem Inter;color:#06130d;background:#6ee7a0;box-shadow:0 14px 40px -8px #000,0 0 0 8px #6ee7a033;animation:ai-glow 2.4s infinite}
+
+/* animated portrait: the photo fills the whole tile like a real video feed */
+.tile.main.photo{background:#9a9ca2}
+.tile.main.photo .avatar-wrap{position:absolute;inset:0;width:auto;height:auto;max-width:none;aspect-ratio:auto;margin:0;filter:none}
+.photoav{display:block;width:100%;height:100%}
+.tile.main.photo .nameplate{z-index:3}
