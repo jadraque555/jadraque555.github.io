@@ -148,7 +148,7 @@
   function levelLoop() {
     if (levelRaf) return;
     (function tick() {
-      if (!outCtx || outCtx.currentTime > playHead + 0.15) { levelRaf = 0; av.setLevel(null); return; }
+      if (!outCtx || outCtx.currentTime > playHead + 0.15) { levelRaf = 0; av.setLevel(ttsOn() ? 0 : null); return; }   // under the natural voice the mouth stays shut until audio drives it
       outAn.getByteTimeDomainData(outBuf);
       var sum = 0; for (var i = 0; i < outBuf.length; i++) { var v = (outBuf[i] - 128) / 128; sum += v * v; }
       av.setLevel(Math.min(1, Math.sqrt(sum / outBuf.length) * 5));
@@ -168,6 +168,7 @@
         buf.copyToChannel(f, 0);
         var src = ctx.createBufferSource(); src.buffer = buf; src.connect(outAn);
         var at = Math.max(ctx.currentTime + 0.04, playHead);
+        if (!scheduled) speakingUI(true);                             // audio is really starting now: face, status and border follow
         src.start(at); playHead = at + buf.duration; scheduled = true;
         liveSrc.push(src); src.onended = function () { var k = liveSrc.indexOf(this); if (k >= 0) liveSrc.splice(k, 1); };
         levelLoop();
@@ -188,6 +189,7 @@
   }
 
   function speakBrowser(text, next) {
+    speakingUI(true);
     if (muted || !synth) return simulate(text, next);
     var u = new SpeechSynthesisUtterance(text);
     if (voice) { u.voice = voice; u.lang = voice.lang; } else u.lang = 'en-US';
@@ -215,7 +217,7 @@
       if (left > 30) { speakingNow = true; timers.push(setTimeout(function () { speakingNow = false; pump(); }, left)); return; }   // let the audio finish
       speakingUI(false); listenSoon(300); return;
     }
-    speakingNow = true; speakingUI(true); stopListening();
+    speakingNow = true; if (!item.job) speakingUI(true); stopListening();
     var next = function () { speakingNow = false; pump(); };
     if (item.job) playJob(item, next); else speakBrowser(item.text, next);
   }
@@ -283,7 +285,7 @@
     function onText() {
       var p = parseReply(full);
       if (p.wait) return;
-      if (!started && p.body.trim()) { started = true; bubble.classList.remove('typing'); av.setEmotion(p.emotion || 'neutral'); speakingUI(true); setStatus('speaking', 'Speaking'); }
+      if (!started && p.body.trim()) { started = true; bubble.classList.remove('typing'); av.setEmotion(p.emotion || 'neutral'); if (!ttsOn()) speakingUI(true); }   // with the natural voice, 'speaking' starts when the audio does
       bubble.textContent = p.body; capAI.textContent = p.body.slice(-220);
       logEl.scrollTop = logEl.scrollHeight;
       var rest = p.body.slice(spoken), m;
@@ -493,6 +495,6 @@
     if (k === 'm') toggleMic(); else if (k === 'c') ccBtn.click(); else if (k === 't') chatBtn.click();
   });
   join();                                                        // no lobby: the call starts as soon as the page opens
-  if (isLocal) window.__callDebug = function () { return { ttsUrl: TTS, ttsFails: ttsFails, ctx: outCtx && outCtx.state, ahead: outCtx ? +(playHead - outCtx.currentTime).toFixed(2) : null, blocked: blocked }; };
+  if (isLocal) window.__callDebug = function () { return { ttsUrl: TTS, ttsFails: ttsFails, ctx: outCtx && outCtx.state, ahead: outCtx ? +(playHead - outCtx.currentTime).toFixed(2) : null, blocked: blocked, mouth: impl && impl.debugOpen ? impl.debugOpen() : null }; };
   window.addEventListener('pagehide', function () { stopSpeaking(); if (stream) stream.getTracks().forEach(function (t) { t.stop(); }); });
 })();

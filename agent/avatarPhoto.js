@@ -265,6 +265,7 @@
 
     return {
       kind: 'photo',
+      debugOpen: function () { return +S.open.toFixed(3); },
       setState: function (s) { state = s; gazeAt = 0; },
       setEmotion: function (e) { T = EMO[e] || EMO.neutral; },
       pulse: function (x) { S.energy = Math.max(S.energy, clamp(x == null ? 1 : x, 0, 1)); },
