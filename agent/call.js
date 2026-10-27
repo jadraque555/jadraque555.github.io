@@ -192,7 +192,7 @@
     }
     if (!scheduled) {                                               // TTS failed before any audio: use the browser voice for this sentence
       if (++ttsFails >= 2) ttsOffUntil = Date.now() + 20000;
-      return speakBrowser(item.text, next);
+      return speakWhenQuiet(item.text, next);
     }
     next();                                                         // everything is queued on the audio clock; the next sentence follows seamlessly
   }
@@ -200,6 +200,14 @@
   function soundBlocked(item) {
     speakQ.unshift(item); speakingNow = false; blocked = true;
     speakingUI(false); setStatus('idle', 'Tap to start sound'); $('tapStart').hidden = false;
+  }
+
+  // Natural-voice sentences are queued on the audio clock and the queue moves on early, so an earlier sentence can still be
+  // playing. The browser voice must never start on top of it (that was the 'two voices at once' bug): wait until it ends.
+  function speakWhenQuiet(text, next) {
+    var left = audioLeftMs();
+    if (left > 30) { timers.push(setTimeout(function () { speakWhenQuiet(text, next); }, left + 25)); return; }
+    speakBrowser(text, next);
   }
 
   function speakBrowser(text, next) {
@@ -233,7 +241,7 @@
     }
     speakingNow = true; if (!item.job) speakingUI(true); stopListening();
     var next = function () { speakingNow = false; pump(); };
-    if (item.job) playJob(item, next); else speakBrowser(item.text, next);
+    if (item.job) playJob(item, next); else speakWhenQuiet(item.text, next);
   }
   function enqueue(text) {
     text = text.replace(/\s+/g, ' ').trim();
