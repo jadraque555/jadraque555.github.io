@@ -55,3 +55,6 @@
 .avatar3d.on{opacity:1}
 .avatar3d canvas{display:block;width:100%;height:100%}
 .avatar-wrap.has3d>svg{opacity:0;transition:opacity .5s ease}
+
+.callcta{display:inline-flex;align-items:center;gap:8px;align-self:flex-start;margin:14px 0 0;padding:9px 16px;border-radius:99px;background:#6ee7a01f;border:1px solid #6ee7a066;color:#6ee7a0;font:600 .85rem Inter;transition:.2s}
+.callcta:hover{background:#6ee7a033}

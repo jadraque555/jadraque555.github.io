@@ -1,0 +1,85 @@
+/* Live call page (call.html) */
+body.call{overflow:hidden;background:#05060a}
+.call-app{position:fixed;inset:0;display:flex;flex-direction:column}
+.call-app [hidden]{display:none!important}
+.lobby{flex:1;display:grid;place-items:center;padding:24px;background:radial-gradient(600px 420px at 50% 28%,#7c8cff2a,transparent 70%),radial-gradient(460px 300px at 80% 100%,#d4af6a22,transparent 70%),#07080d}
+.lobby-card{width:min(440px,100%);text-align:center;display:flex;flex-direction:column;align-items:center;gap:14px}
+.lobby-card h1{font-size:clamp(1.7rem,5vw,2.2rem)}
+.lobby-card p{color:var(--mut);font-size:.98rem}
+.lobby-note{font-size:.76rem!important;line-height:1.5}
+.lobby-note a{color:var(--a)}
+.lobby-face{width:min(210px,52vw);aspect-ratio:1;border-radius:50%;overflow:hidden;border:1px solid var(--line);background:#0b0d16;display:flex;align-items:flex-end;justify-content:center;box-shadow:0 0 0 8px #ffffff05,0 24px 60px -24px #000}
+.lobby-face .avatar-wrap{width:92%;flex:none;margin-bottom:-24%}
+.join{display:inline-flex;align-items:center;gap:10px;margin-top:6px;padding:15px 34px;border:0;border-radius:99px;cursor:pointer;font:600 1.05rem Inter;color:#06130d;background:#6ee7a0;box-shadow:0 12px 30px -10px #6ee7a0aa;transition:transform .15s}
+.join:hover{transform:translateY(-1px)}
+.join svg{width:20px;height:20px}
+.back{color:var(--mut);font-size:.85rem}
+.back:hover{color:var(--tx)}
+
+.stagewrap{flex:1;display:flex;flex-direction:column;min-height:0;position:relative}
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;gap:12px}
+.meet{display:flex;align-items:center;gap:8px;font:500 .9rem Inter;color:var(--tx)}
+.meet .sep,.meet time{color:var(--mut)}
+.meet time{font-family:'JetBrains Mono',monospace;font-size:.82rem}
+.rec{width:9px;height:9px;border-radius:50%;background:#ff5a5f;animation:ag-pulse 1.6s infinite}
+.stagewrap .agent-status{position:static}
+.tiles{flex:1;min-height:0;position:relative;margin:0 16px;border-radius:22px;overflow:hidden}
+.tile{position:absolute;overflow:hidden;border:1px solid var(--line)}
+.tile.main{inset:0;display:flex;align-items:flex-end;justify-content:center;border-radius:22px;background:radial-gradient(520px 380px at 50% 28%,#7c8cff30,transparent 70%),radial-gradient(420px 260px at 82% 100%,#d4af6a26,transparent 70%),#0b0d16}
+.tile.main .avatar-wrap{height:92%;width:auto;aspect-ratio:320/400;max-width:92%;margin-bottom:0}
+.tile.main.talking{box-shadow:inset 0 0 0 3px #6ee7a0aa}
+.tile.self{right:14px;bottom:14px;width:170px;height:104px;border-radius:14px;background:#141828;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;z-index:3}
+.tile.self.talking{box-shadow:0 0 0 3px #d4af6acc}
+.selfavatar{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,var(--b),var(--a));color:#10131c;font:700 .9rem 'Space Grotesk'}
+#meter{width:100px;height:20px}
+.nameplate{position:absolute;left:14px;bottom:12px;display:flex;align-items:center;gap:8px;padding:5px 12px;border-radius:99px;background:#0b0d16b8;backdrop-filter:blur(6px);font:500 .85rem Inter;z-index:2}
+.nameplate.small{left:8px;bottom:6px;padding:2px 9px;font-size:.72rem}
+.wave{display:inline-flex;gap:2px;align-items:center;height:12px}
+.wave i{width:3px;height:4px;border-radius:2px;background:#6ee7a0;transition:height .1s}
+.tile.main.talking .wave i{animation:wv .7s ease-in-out infinite}
+.wave i:nth-child(2){animation-delay:.15s!important}.wave i:nth-child(3){animation-delay:.3s!important}
+@keyframes wv{50%{height:12px}}
+.tile.self.muted .selfavatar{filter:grayscale(1);opacity:.6}
+
+.captions{position:absolute;left:50%;transform:translateX(-50%);bottom:96px;width:min(720px,calc(100% - 40px));text-align:center;pointer-events:none;z-index:4}
+.captions p{display:inline-block;max-width:100%;margin:3px 0;padding:6px 14px;border-radius:10px;background:#000000b0;font-size:1.02rem;line-height:1.45}
+.captions p:empty{display:none}
+.captions #capYou{color:#f2dca8;font-size:.92rem}
+.captions.off{display:none}
+
+.chatpanel{position:absolute;top:60px;right:16px;bottom:96px;width:min(340px,calc(100% - 32px));display:flex;flex-direction:column;background:#10131e;border:1px solid var(--line);border-radius:18px;padding:14px;z-index:6;box-shadow:0 20px 60px -20px #000}
+.chathead{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font:600 .95rem Inter}
+.chathead button{background:none;border:0;color:var(--mut);cursor:pointer;font-size:1rem}
+.chatpanel .agent-log{min-height:0;max-height:none}
+.chatform{display:flex;gap:8px;margin-top:10px}
+.chatform input{flex:1;min-width:0;padding:11px 14px;border-radius:99px;border:1px solid var(--line);background:#0b0d16;color:var(--tx);font:inherit;font-size:.9rem}
+.chatform button{border:0;border-radius:99px;padding:0 16px;font-weight:600;cursor:pointer;background:linear-gradient(100deg,var(--a),#f2dca8);color:#14110a}
+.chatform button:disabled{opacity:.5}
+
+.controls{display:flex;justify-content:center;gap:12px;padding:16px 12px calc(18px + env(safe-area-inset-bottom));z-index:5}
+.ctl{display:flex;flex-direction:column;align-items:center;gap:4px;border:0;background:none;color:var(--mut);font:500 .7rem Inter;cursor:pointer}
+.ctl svg{width:54px;height:54px;padding:15px;border-radius:50%;background:#1b2030;color:var(--tx);transition:.2s}
+.ctl:hover svg{background:#262d44}
+.ctl.on svg{background:#d9e0ff;color:#10131c}
+.ctl[aria-pressed=true]:not(.on) svg{background:#ff5a5f;color:#fff}
+#chatBtn[aria-pressed=true] svg{background:#d9e0ff;color:#10131c}
+.ctl .slash{opacity:0}
+#micBtn[aria-pressed=true] .slash{opacity:1}
+.ctl.end svg{background:#e5484d;color:#fff;width:70px;border-radius:99px}
+.ctl.end:hover svg{background:#f05a5f}
+.ctl.listening svg{box-shadow:0 0 0 0 #6ee7a0aa;animation:ag-ringg 1.4s infinite}
+@keyframes ag-ringg{to{box-shadow:0 0 0 14px #6ee7a000}}
+
+@media(max-width:720px){
+  .tiles{margin:0 8px}
+  .tile.self{width:112px;height:80px;right:10px;bottom:10px}
+  .selfavatar{width:34px;height:34px;font-size:.75rem}
+  #meter{display:none}
+  .tile.main .avatar-wrap{height:auto;width:min(100%,320px)}
+  .ctl svg{width:48px;height:48px;padding:13px}
+  .ctl.end svg{width:62px}
+  .controls{gap:8px}
+  .chatpanel{top:56px;right:8px;left:8px;width:auto}
+  .captions{bottom:90px}
+}
+@media(prefers-reduced-motion:reduce){.rec,.wave i,.ctl.listening svg{animation:none!important}}
