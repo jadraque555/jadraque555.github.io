@@ -9,7 +9,7 @@
   var LM = {
     size: 900,
     eyes: [{ x: 399, y: 181, rx: 40, ry: 14 }, { x: 533, y: 182, rx: 40, ry: 14 }],
-    mouth: { cx: 465, top: 317, lip: 327, rx: 50, maxDrop: 18 },  // top = row just under the upper teeth, lip = where the lower lip begins; the jaw moves down from there
+    mouth: { cx: 465, top: 317, lip: 327, rx: 50, maxDrop: 16 },  // top = row just under the upper teeth, lip = where the lower lip begins; the jaw moves down from there
     jaw: { x0: 366, x1: 566, full: 400, end: 482 },         // columns warped, row where the full drop fades out, row where it stops
     brow: { x0: 366, x1: 566, y0: 146, peak: 157, y1: 173 },// band lifted for eyebrow motion
     gazeClip: { rx: 30, ry: 8, dy: 1.5 },                   // the visible eye opening, where the iris may move
@@ -116,30 +116,54 @@
       });
     }
 
+    // 0 at the mouth corners, 1 in the middle: the jaw moves most in the centre, so the opening is a rounded bowl, not a straight slot
+    function mouthWeight(x, R) {
+      var u = (x - LM.mouth.cx) / R;
+      return u <= -1 || u >= 1 ? 0 : Math.pow(1 - u * u, 0.7);
+    }
+
     function drawMouth(d) {
-      var m = LM.mouth, j = LM.jaw, lip = m.lip;
-      var ta = 1 - smooth((d - 3) / 8);                                // 1 = lower teeth still show, 0 = hidden in shadow
-      var bottom = m.top + d + 1 + (1 - ta) * (lip - m.top);          // thin gap on a small opening, deep only when the lower teeth fade
-      // the inside of the mouth: covers the lower teeth (they sit in shadow) from the upper teeth down to the lower lip
+      var m = LM.mouth, j = LM.jaw, lip = m.lip, R = m.rx + 3;
+      var ta = 1 - smooth((d - 2) / 5);                                // 1 = lower teeth still show, 0 = hidden in shadow
+      var xa = Math.floor(m.cx - R), xb = Math.ceil(m.cx + R), x, w;
+
+      // inside of the mouth: flat top under the upper teeth, bottom following the curve of the moving lower lip
+      var deep = (1 - ta) * (lip - m.top);                             // lower-teeth zone, swallowed by shadow on wide openings
       wg.save();
-      wg.beginPath(); wg.rect(0, m.top - 1, N, N); wg.clip();
-      var gr = wg.createLinearGradient(0, m.top, 0, bottom + 2);
+      var gr = wg.createLinearGradient(0, m.top, 0, lip + d + 2);
       gr.addColorStop(0, '#26100f'); gr.addColorStop(0.5, '#3d1718'); gr.addColorStop(1, '#5a2427');
       wg.fillStyle = gr;
-      wg.beginPath(); wg.ellipse(m.cx, m.top, m.rx - 3, bottom - m.top, 0, 0, Math.PI * 2); wg.fill();
+      wg.beginPath();
+      wg.moveTo(xa + 2, m.top - 0.5);
+      for (x = xa + 2; x <= xb - 2; x += 1) {
+        w = mouthWeight(x, R);
+        var edge = clamp((1 - Math.abs(x - m.cx) / R) / 0.4, 0, 1);    // thins out toward the corners
+        wg.lineTo(x, m.top + 1 + d * w + deep * edge * edge * (3 - 2 * edge));
+      }
+      wg.lineTo(xb - 2, m.top - 0.5); wg.closePath(); wg.fill();
       if (d > 7) {                                                     // a hint of tongue on a wide opening
-        var ty = bottom - 2, tr = wg.createRadialGradient(m.cx, ty, 1, m.cx, ty, m.rx * 0.55);
+        var ty = lip + d - 2, tr = wg.createRadialGradient(m.cx, ty, 1, m.cx, ty, m.rx * 0.55);
         tr.addColorStop(0, 'rgba(188,94,100,.8)'); tr.addColorStop(1, 'rgba(150,70,76,0)');
-        wg.fillStyle = tr; wg.fillRect(m.cx - m.rx * 0.6, bottom - 10, m.rx * 1.2, 10);
+        wg.fillStyle = tr; wg.beginPath(); wg.ellipse(m.cx, ty, m.rx * 0.5, Math.min(9, d * 0.5), 0, 0, Math.PI * 2); wg.fill();   // rounded, no hard block
       }
       wg.restore();
-      // lower teeth ride down with the jaw on a small opening and fade into shadow as it widens
-      if (ta > 0.02) warpBand(m.cx - 58, m.cx + 58, m.top, lip, function () { return d * 0.96; }, 4, ta);
-      // jaw: the lower lip and chin slide down, strongest at the lip, fading out toward the neck
-      warpBand(j.x0, j.x1, lip, j.end, function (y) {
-        var t = y < j.full ? 0 : (y - j.full) / (j.end - j.full);
-        return d * (1 - smooth(t));
-      }, 6);
+
+      // jaw: column by column, so the lower lip's top edge is a smooth curve
+      og.clearRect(0, 0, N, N);
+      for (x = xa; x < xb; x += 1) {
+        var sh = d * mouthWeight(x + 0.5, R);
+        if (sh < 0.15) continue;                                       // this column barely moves: the base photo already shows it
+        if (ta > 0.02) {                                               // lower teeth ride down on small openings and fade on wide ones
+          og.globalAlpha = ta;
+          og.drawImage(src, x, m.top, 1, lip - m.top, x, m.top + sh * 0.96, 1, lip - m.top);
+          og.globalAlpha = 1;
+        }
+        og.globalAlpha = 0.35; og.drawImage(src, x, lip, 1, 1.5, x, lip + sh, 1.3, 1.5);                     // soft top edge on the lip, so the curve has no hard steps
+        og.globalAlpha = 0.7;  og.drawImage(src, x, lip + 1.5, 1, 1.5, x, lip + sh + 1.5, 1.3, 1.5);
+        og.globalAlpha = 1;    og.drawImage(src, x, lip + 3, 1, j.full - lip - 3, x, lip + sh + 3, 1.3, j.full - lip - 3);   // lower lip and chin
+        og.drawImage(src, x, j.full, 1, j.end - j.full, x, j.full + sh, 1.3, j.end - j.full - sh);        // fades out toward the neck
+      }
+      wg.drawImage(ov, 0, 0);
     }
 
     function drawLids(p) {                                          // blink: skin texture from above the eye, stretched down
