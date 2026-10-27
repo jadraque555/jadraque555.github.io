@@ -103,7 +103,7 @@
   var TTS = cfg.ttsUrl || (API ? API.replace(/\/api\/chat\/?$/, '/api/tts') : '');
   if (isLocal && params.get('tts') === 'off') TTS = '';
   var TTS_VOICE = cfg.ttsVoice || (isLocal && params.get('voice')) || '';
-  var ttsFails = 0, outCtx = null, outAn = null, outBuf = null, playHead = 0, liveSrc = [], levelRaf = 0;
+  var ttsFails = 0, ttsOffUntil = 0, outCtx = null, outAn = null, outBuf = null, playHead = 0, liveSrc = [], levelRaf = 0;
 
   function ensureOut() {
     if (outCtx) return outCtx;
@@ -115,7 +115,7 @@
     } catch (e) { outCtx = null; }
     return outCtx;
   }
-  function ttsOn() { return TTS && ttsFails < 2 && !muted && ensureOut(); }
+  function ttsOn() { return TTS && Date.now() >= ttsOffUntil && !muted && ensureOut(); }   // after repeated failures the browser voice covers for ~20s, then the natural voice is tried again
 
   function fetchSpeech(text) {                                      // starts downloading right away, so it's ready when its turn comes
     var job = { chunks: [], done: false, failed: false, wake: null, ctrl: new AbortController(), got: false };
@@ -134,7 +134,7 @@
             if (u8.length % 2) { left = u8[u8.length - 1]; u8 = u8.subarray(0, u8.length - 1); }
             var n = u8.length >> 1, f = new Float32Array(n), dv = new DataView(u8.buffer, u8.byteOffset, u8.length);
             for (var i = 0; i < n; i++) f[i] = dv.getInt16(i * 2, true) / 32768;
-            if (n) { job.got = true; clearTimeout(timer); job.chunks.push(f); ping(); }
+            if (n) { if (!job.got) ttsFails = 0; job.got = true; clearTimeout(timer); job.chunks.push(f); ping(); }
             return step();
           });
         }
@@ -177,7 +177,7 @@
       await new Promise(function (r) { job.wake = r; });
     }
     if (!scheduled) {                                               // TTS failed before any audio: use the browser voice for this sentence
-      ttsFails++;
+      if (++ttsFails >= 2) ttsOffUntil = Date.now() + 20000;
       return speakBrowser(item.text, next);
     }
     next();                                                         // everything is queued on the audio clock; the next sentence follows seamlessly
