@@ -12,6 +12,21 @@
   if (isLocal) API = params.get('agentApi') || API || 'http://localhost:8787/api/chat';   // local dev: use the local API by default
 
   var $ = function (id) { return document.getElementById(id); };
+  var IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var DEBUG = /[?&]debug=1/.test(location.search);
+  var dbgEl = null;
+  function dbg(msg) {                                               // on-screen log for phones: open the page with ?debug=1 and screenshot it
+    if (!DEBUG) return;
+    if (!dbgEl) {
+      dbgEl = document.createElement('div');
+      dbgEl.style.cssText = 'position:fixed;left:0;right:0;bottom:0;max-height:34vh;overflow:auto;z-index:99;background:#000c;color:#9fe;font:10px/1.3 monospace;padding:4px 6px;pointer-events:none;white-space:pre-wrap';
+      document.body.appendChild(dbgEl);
+      dbgEl.textContent = (IOS ? 'iOS ' : '') + navigator.userAgent.slice(0, 120) + '\n';
+    }
+    dbgEl.textContent += ((performance.now() / 1000).toFixed(1) + 's ' + msg + '\n');
+    dbgEl.scrollTop = dbgEl.scrollHeight;
+  }
+  window.addEventListener('error', function (e) { dbg('ERROR ' + e.message); });
   var root = $('agent');
   var statusEl = $('agentStatus'), logEl = $('agentLog'), form = $('agentForm'), input = $('agentText'),
       sendBtn = $('agentSend'), micBtn = $('micBtn'), ccBtn = $('ccBtn'), chatBtn = $('chatBtn'),
@@ -21,7 +36,7 @@
   var GREETING = "Hey, thanks for calling! I'm the AI version of Jayson. What would you like to know about my work?";
   var history = [], busy = false, muted = false, micMuted = false, liteMode = !API, aborter = null;
   var speakQ = [], speakingNow = false, streaming = false, timers = [];
-  var blocked = false, inCall = false, listening = false, recog = null, restartT = null, noSpeech = 0, litenoted = false;
+  var micGranted = false, srFails = 0, blocked = false, inCall = false, listening = false, recog = null, restartT = null, noSpeech = 0, litenoted = false;
   var stream = null, actx = null, analyser = null, levelBuf = null, startedAt = 0, tickT = null, rafId = 0;
 
   /* ---------- avatar (SVG now, 3D model when configured) ---------- */
@@ -111,10 +126,14 @@
       outCtx = new (window.AudioContext || window.webkitAudioContext)();
       outAn = outCtx.createAnalyser(); outAn.fftSize = 512;
       outAn.connect(outCtx.destination);
+      outCtx.onstatechange = function () { dbg('audio ' + (outCtx && outCtx.state)); };
       outBuf = new Uint8Array(outAn.fftSize);
     } catch (e) { outCtx = null; }
     return outCtx;
   }
+  function wakeAudio() { if (outCtx && outCtx.state !== 'running') { try { outCtx.resume().catch(function () {}); } catch (e) {} } }
+  ['touchend', 'click'].forEach(function (ev) { document.addEventListener(ev, wakeAudio, { passive: true }); });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) wakeAudio(); });
   function ttsOn() { return TTS && Date.now() >= ttsOffUntil && !muted && ensureOut(); }   // after repeated failures the browser voice covers for ~20s, then the natural voice is tried again
 
   function fetchSpeech(text) {                                      // starts downloading right away, so it's ready when its turn comes
@@ -143,6 +162,29 @@
       .catch(function () { if (!job.got) job.failed = true; job.done = true; ping(); })
       .then(function () { clearTimeout(timer); });
     return job;
+  }
+
+  /* ----- recorded answers in Jayson's own voice (cloned offline): agent/clips/clips.json + one .m4a per answer ----- */
+  var CLIPS = {};
+  var clipsReady = fetch('agent/clips/clips.json').then(function (r) { return r.ok ? r.json() : []; })
+    .then(function (list) { list.forEach(function (c) { CLIPS[c.id] = c; }); }).catch(function () {});
+
+  function fetchClip(id) {
+    var job = { chunks: [], done: false, failed: false, wake: null, ctrl: new AbortController(), got: false, rate: 44100 };
+    var ping = function () { if (job.wake) { var w = job.wake; job.wake = null; w(); } };
+    fetch('agent/clips/' + id + '.m4a', { signal: job.ctrl.signal })
+      .then(function (r) { if (!r.ok) throw new Error(String(r.status)); return r.arrayBuffer(); })
+      .then(function (buf) { return ensureOut().decodeAudioData(buf); })
+      .then(function (ab) { job.rate = ab.sampleRate; job.chunks.push(ab.getChannelData(0)); job.got = true; job.done = true; ping(); })
+      .catch(function () { job.failed = true; job.done = true; ping(); });
+    return job;
+  }
+  function enqueueClip(id) {                                        // if the recording cannot load, the same words are spoken by the normal voice
+    var c = CLIPS[id];
+    if (!c) return false;
+    speakQ.push({ text: c.text, job: !muted && ensureOut() ? fetchClip(id) : null });
+    pump();
+    return true;
   }
 
   function fetchStatic(url) {                                       // a pre-recorded clip (the greeting): no API call, no quota
@@ -174,11 +216,11 @@
   async function playJob(item, next) {                              // schedule streamed chunks back to back, gapless
     var job = item.job, ctx = outCtx, idx = 0, scheduled = false;
     if (ctx.state !== 'running') { try { await Promise.race([ctx.resume(), new Promise(function (r) { setTimeout(r, 250); })]); } catch (e) {} }
-    if (ctx.state !== 'running') return soundBlocked(item);
+    if (ctx.state !== 'running') { dbg('audio blocked: ' + ctx.state); return soundBlocked(item); }
     for (;;) {
       if (job.ctrl.signal.aborted && !job.got) break;
       while (idx < job.chunks.length) {
-        var f = job.chunks[idx++], buf = ctx.createBuffer(1, f.length, 24000);
+        var f = job.chunks[idx++], buf = ctx.createBuffer(1, f.length, job.rate || 24000);
         buf.copyToChannel(f, 0);
         var src = ctx.createBufferSource(); src.buffer = buf; src.connect(outAn);
         var at = Math.max(ctx.currentTime + 0.04, playHead);
@@ -221,12 +263,17 @@
     u.onstart = function () {
       timers.push(setTimeout(function () { if (!gotBoundary) iv = setInterval(function () { av.pulse(0.8); }, 180); }, 450));
     };
-    var end = function () { if (iv) clearInterval(iv); next(); };
+    var finished = false, wd = null;
+    var end = function () { if (finished) return; finished = true; clearTimeout(wd); if (iv) clearInterval(iv); dbg('speech end'); next(); };
     u.onend = end;
     u.onerror = function (e) {
-      if (e && e.error === 'not-allowed') { if (iv) clearInterval(iv); soundBlocked({ text: text, job: null }); return; }
+      dbg('speech error ' + (e && e.error));
+      if (e && e.error === 'not-allowed') { finished = true; clearTimeout(wd); if (iv) clearInterval(iv); soundBlocked({ text: text, job: null }); return; }
       end();
     };
+    wd = setTimeout(function () { dbg('speech watchdog: no end event'); try { synth.cancel(); } catch (e) {} end(); }, Math.max(3500, text.length * 110 + 2500));   // iOS Safari can drop the end event
+    timers.push(wd);
+    dbg('speak ' + text.length + ' chars');
     synth.speak(u);
   }
 
@@ -247,7 +294,7 @@
     text = text.replace(/\s+/g, ' ').trim();
     if (!text) return;
     var job = null;
-    if (text === GREETING && !muted && ensureOut()) job = fetchStatic('agent/greeting.wav');
+    if (text === GREETING && !muted && ensureOut()) job = CLIPS.greeting ? fetchClip('greeting') : fetchStatic('agent/greeting.wav');
     else if (ttsOn()) job = fetchSpeech(text);
     speakQ.push({ text: text, job: job });
     pump();
@@ -306,10 +353,22 @@
     var bubble = addMsg('ai', ''); bubble.classList.add('typing');
     streaming = true;
 
-    var full = '', spoken = 0, started = false;
+    var full = '', spoken = 0, started = false, clipId = null;
     function onText() {
       var p = parseReply(full);
       if (p.wait) return;
+      if (!clipId) {                                                 // "[clip:intro]" means: play my recorded answer instead of speaking generated text
+        var cm = p.body.match(/^\s*\[clip:([a-z0-9_]+)\]/i);
+        if (cm && CLIPS[cm[1].toLowerCase()] && cm[1].toLowerCase() !== 'greeting') {
+          clipId = cm[1].toLowerCase();
+          started = true; bubble.classList.remove('typing'); av.setEmotion(p.emotion || 'neutral');
+          bubble.textContent = CLIPS[clipId].text; capAI.textContent = CLIPS[clipId].text; logEl.scrollTop = logEl.scrollHeight;
+          enqueueClip(clipId);
+          return;
+        }
+        if (/^\s*\[(c|cl|cli|clip|clip:[a-z0-9_]*)$/i.test(p.body)) return;   // tag still arriving
+      }
+      if (clipId) return;                                            // the rest of the stream (if any) is ignored
       if (!started && p.body.trim()) { started = true; bubble.classList.remove('typing'); av.setEmotion(p.emotion || 'neutral'); if (!ttsOn()) speakingUI(true); }   // with the natural voice, 'speaking' starts when the audio does
       bubble.textContent = p.body; capAI.textContent = p.body.slice(-220);
       logEl.scrollTop = logEl.scrollHeight;
@@ -342,6 +401,7 @@
         }
       }
       if (!full.trim()) throw new Error('empty');
+      if (clipId) { finishTurn(bubble, CLIPS[clipId].text); return; }
       var rem = parseReply(full), tail = (rem.body || '').slice(spoken).trim();
       if (tail) enqueue(tail);
       finishTurn(bubble, rem.body ? rem.body.trim() : '');
@@ -366,7 +426,7 @@
 
   /* ---------- listening (hands-free loop) ---------- */
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  function canListen() { return inCall && SR && stream && !micMuted && !busy && !streaming && !speakingNow && !speakQ.length; }
+  function canListen() { return inCall && SR && (stream || micGranted) && !micMuted && !busy && !streaming && !speakingNow && !speakQ.length; }
   function listenSoon(ms) { clearTimeout(restartT); restartT = setTimeout(startListening, ms || 250); }
   function stopListening() {
     clearTimeout(restartT);
@@ -378,7 +438,7 @@
     var r = recog = new SR();
     r.lang = 'en-US'; r.interimResults = true; r.continuous = false; r.maxAlternatives = 1;
     var finalText = '', fatal = false, endT = null;
-    r.onstart = function () { listening = true; micBtn.classList.add('listening'); av.setState('listening'); setStatus('listening', 'Listening…'); };
+    r.onstart = function () { dbg('recognition started'); clearTimeout(startWd); listening = true; micBtn.classList.add('listening'); av.setState('listening'); setStatus('listening', 'Listening…'); };
     r.onresult = function (e) {
       var interim = '';
       for (var i = e.resultIndex; i < e.results.length; i++) { var x = e.results[i]; if (x.isFinal) finalText += x[0].transcript; else interim += x[0].transcript; }
@@ -387,21 +447,28 @@
       endT = setTimeout(function () { if (recog === r) { try { r.stop(); } catch (e) {} } }, 900);
     };
     r.onerror = function (e) {
+      dbg('recognition error: ' + e.error);
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { fatal = true; note('The microphone is blocked. Allow it in your browser, or type in the chat.'); micBtn.setAttribute('aria-pressed', 'true'); micMuted = true; }
       else if (e.error === 'no-speech') noSpeech++;
       else if (e.error === 'network') { fatal = true; note('Voice recognition lost its connection. Tap the mic to try again, or type in the chat.'); micMuted = true; micBtn.setAttribute('aria-pressed', 'true'); }
+      else if (e.error !== 'aborted') srFails++;                       // audio-capture and friends: the browser could not hear the mic this time
     };
     r.onend = function () {
       if (recog !== r) return;
-      clearTimeout(endT);
+      clearTimeout(endT); clearTimeout(startWd);
       recog = null; listening = false; micBtn.classList.remove('listening');
       var t = (finalText || '').trim();
-      if (t) { ask(t); return; }
+      dbg('recognition end, heard: ' + (t ? '"' + t.slice(0, 40) + '"' : 'nothing'));
+      if (t) { srFails = 0; ask(t); return; }
       setYou(''); av.setState('idle');
-      if (!fatal && inCall) { if (!busy) setStatus('listening', 'Listening…'); listenSoon(noSpeech > 3 ? 1500 : 250); }
+      if (srFails >= 2) { setStatus('idle', 'Tap to talk'); return; }   // automatic listening keeps failing here: wait for the Tap to talk button instead of looping
+      if (!fatal && inCall) { if (!busy) setStatus('listening', 'Listening…'); listenSoon(IOS ? 900 : (noSpeech > 3 ? 1500 : 250)); }
       else if (fatal) setStatus('idle', 'Mic off');
     };
-    try { r.start(); } catch (e) { recog = null; listenSoon(800); }
+    var startWd = setTimeout(function () {                              // iOS sometimes accepts start() and then never starts or ends
+      if (recog === r && !listening) { dbg('recognition never started'); srFails++; stopListening(); if (srFails < 2) listenSoon(900); else setStatus('idle', 'Tap to talk'); }
+    }, 3500);
+    try { dbg('recognition start'); r.start(); } catch (e) { dbg('start threw: ' + e.message); recog = null; srFails++; clearTimeout(startWd); if (srFails < 2) listenSoon(900); else setStatus('idle', 'Tap to talk'); }
   }
 
   /* ---------- mic level meter (also confirms the mic works) ---------- */
@@ -433,9 +500,11 @@
   async function join() {
     // The click that got us here unlocks audio output; also ask for the mic once.
     if (synth) { try { synth.cancel(); } catch (e) {} }
-    ttsFails = 0; ensureOut();
+    if (IOS && synth) { try { var u0 = new SpeechSynthesisUtterance(' '); u0.volume = 0; synth.speak(u0); } catch (e) {} }   // iOS only allows speech after one spoken in a tap
+    ttsFails = 0; srFails = 0; ensureOut(); wakeAudio();
     var micOk = false;
-    if (SR && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    if (IOS && SR) { micOk = true; micGranted = true; }                 // iOS: recognition asks for the mic itself; holding a second mic stream breaks it
+    else if (SR && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
         micOk = true;
@@ -447,7 +516,7 @@
     buildAvatar();
     logEl.innerHTML = ''; history = []; litenoted = false; capAI.textContent = ''; capYou.textContent = '';
     tickT = setInterval(function () { $('timer').textContent = fmt(Math.floor((Date.now() - startedAt) / 1000)); }, 1000);
-    if (micOk) startMeter();
+    if (micOk && stream) startMeter();
     else {
       micMuted = true; micBtn.setAttribute('aria-pressed', 'true'); selfTile.classList.add('muted');
       $('chatPanel').hidden = false; chatBtn.setAttribute('aria-pressed', 'true');
@@ -459,6 +528,7 @@
     var b = addMsg('ai', GREETING);
     capAI.textContent = GREETING; av.setEmotion('happy');
     history.push({ role: 'assistant', content: GREETING });
+    await Promise.race([clipsReady, new Promise(function (r) { setTimeout(r, 1500); })]);          // so the greeting uses the recorded voice
     streaming = false; enqueue(GREETING);
   }
   function leave() {
@@ -489,9 +559,15 @@
     micBtn.setAttribute('aria-pressed', micMuted ? 'true' : 'false');
     selfTile.classList.toggle('muted', micMuted);
     if (micMuted) { stopListening(); setYou(''); if (!busy && !speakingNow) setStatus('idle', 'Mic muted'); }
-    else if (stream) listenSoon(100);
+    else if (stream || micGranted) { srFails = 0; listenSoon(100); }
   }
   micBtn.addEventListener('click', toggleMic);
+  var talkBtn = $('talkBtn');
+  talkBtn.addEventListener('click', function () { srFails = 0; talkBtn.hidden = true; startListening(); });   // starting inside a tap always counts as a user gesture
+  setInterval(function () {                                           // offered on iPhone whenever it is my turn, and anywhere automatic listening keeps failing
+    var show = inCall && SR && (stream || micGranted) && !micMuted && !listening && !busy && !streaming && !speakingNow && !speakQ.length && !blocked && (IOS || srFails >= 2);
+    if (talkBtn.hidden === show) talkBtn.hidden = !show;
+  }, 400);
   ccBtn.addEventListener('click', function () {
     var on = ccBtn.classList.toggle('on'); ccBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
     $('captions').classList.toggle('off', !on);
