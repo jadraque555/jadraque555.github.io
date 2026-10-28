@@ -47,34 +47,71 @@
     pulse: function (x) { impl && impl.pulse(x); },
     setLevel: function (v) { impl && impl.setLevel(v); }
   };
-  function buildVector() {                                          // 2D drawn face, upgraded to a 3D model when one is configured
-    var avatarEl = $('avatar');
-    svgAv = window.createAvatar(avatarEl);
-    impl = svgAv;
-    impl.setEmotion(lastEmotion); impl.setState(lastState);
-    var modelUrl = cfg.avatarModel || '';
-    if (isLocal && params.get('agentModel')) modelUrl = params.get('agentModel');
-    if (!modelUrl) return;
-    var layer = document.createElement('div');
-    layer.className = 'avatar3d';
-    avatarEl.appendChild(layer);
-    import('./avatar3d.js')
-      .then(function (m) { return m.createAvatar3D(layer, { url: modelUrl, extent: cfg.avatarExtent, lookDown: cfg.avatarLookDown, rotateY: cfg.avatarRotateY }); })
-      .then(function (a3) {
-        svgAv.destroy(); impl = a3;
-        avatarEl.classList.add('has3d'); layer.classList.add('on');
-        impl.setEmotion(lastEmotion); impl.setState(lastState);
-      })
-      .catch(function (err) { layer.remove(); if (window.console) console.warn('3D avatar unavailable:', err && err.message); });
+  /* ----- which avatar: animated photo or 3D model (the viewer can switch; the choice is remembered) ----- */
+  var AV_KEY = 'jaysonAvatarMode', buildId = 0;
+  var modelUrl = cfg.avatarModel || '';
+  if (isLocal && params.get('agentModel')) modelUrl = params.get('agentModel');
+  var photoUrl = cfg.avatarPhoto || '';
+  var avatarMode = (function () {
+    var q = params.get('avatar');
+    if (q === 'photo' || q === '3d' || q === 'svg') return q === '3d' && !modelUrl ? 'photo' : q;
+    try { var saved = localStorage.getItem(AV_KEY); if (saved === 'photo' || (saved === '3d' && modelUrl)) return saved; } catch (e) {}
+    return cfg.avatarDefault === '3d' && modelUrl ? '3d' : (photoUrl ? 'photo' : (modelUrl ? '3d' : 'svg'));
+  })();
+
+  function syncAvatar() { if (impl) { impl.setEmotion(lastEmotion); impl.setState(lastState); } }
+  function destroyAvatar() {
+    buildId++;                                                      // any build still loading is now stale and will discard itself
+    if (impl && impl.destroy) impl.destroy();
+    impl = null; svgAv = null;
+    $('avatar').innerHTML = ''; $('avatar').classList.remove('has3d');
+    mainTile.classList.remove('photo', 'model3d', 'loading3d');
   }
-  function buildAvatar() {                                          // preferred: the animated real portrait; fallbacks: 3D model, then drawn face
-    var photoUrl = cfg.avatarPhoto || '';
-    if (isLocal && params.get('avatar')) photoUrl = params.get('avatar') === 'photo' ? (photoUrl || 'img/avatar-portrait.jpg') : '';
-    if (!photoUrl || !window.createPhotoAvatar) return buildVector();
+  function buildSvg() { svgAv = window.createAvatar($('avatar')); impl = svgAv; syncAvatar(); }
+  function buildPhoto(id) {
     var noBg = isLocal && params.get('bg') === 'off';
     window.createPhotoAvatar($('avatar'), { url: photoUrl, bg: noBg ? '' : cfg.avatarBg, matte: noBg ? '' : cfg.avatarMatte })
-      .then(function (pa) { impl = pa; mainTile.classList.add('photo'); impl.setEmotion(lastEmotion); impl.setState(lastState); })
-      .catch(function (err) { if (window.console) console.warn('Portrait avatar unavailable:', err && err.message); buildVector(); });
+      .then(function (pa) { if (id !== buildId) { pa.destroy(); return; } impl = pa; mainTile.classList.add('photo'); syncAvatar(); })
+      .catch(function (err) { if (id !== buildId) return; if (window.console) console.warn('Portrait avatar unavailable:', err && err.message); photoUrl = ''; updateAvToggle(); buildSvg(); });
+  }
+  function build3D(id) {
+    var layer = document.createElement('div');
+    layer.className = 'avatar3d fill on';
+    $('avatar').appendChild(layer);
+    mainTile.classList.add('model3d', 'loading3d');
+    import('./avatar3d.js')
+      .then(function (m) { return m.createAvatar3D(layer, { url: modelUrl, extent: isLocal && params.get('extent') ? +params.get('extent') : cfg.avatarExtent, lookDown: isLocal && params.get('lookDown') ? +params.get('lookDown') : cfg.avatarLookDown, rotateY: cfg.avatarRotateY, armDrop: isLocal && params.get('armDrop') ? +params.get('armDrop') : cfg.avatarArmDrop, armAxis: isLocal && params.get('armAxis') || cfg.avatarArmAxis }); })
+      .then(function (a3) {
+        if (id !== buildId) { a3.destroy(); return; }
+        mainTile.classList.remove('loading3d'); impl = a3; if (isLocal) window.__avatar3d = a3; syncAvatar();
+      })
+      .catch(function (err) {                                       // WebGL missing or the model failed: fall back to the photo
+        if (id !== buildId) return;
+        if (window.console) console.warn('3D avatar unavailable:', err && err.message);
+        modelUrl = ''; avatarMode = photoUrl ? 'photo' : 'svg'; destroyAvatar(); updateAvToggle(); buildAvatar();
+      });
+  }
+  function buildAvatar() {
+    var id = buildId;
+    if (avatarMode === '3d' && modelUrl) return build3D(id);
+    if (avatarMode !== 'svg' && photoUrl && window.createPhotoAvatar) return buildPhoto(id);
+    buildSvg();
+  }
+  function updateAvToggle() {
+    var btn = $('avBtn');
+    if (!btn) return;
+    btn.hidden = !(modelUrl && photoUrl) || avatarMode === 'svg';
+    var is3d = avatarMode === '3d';
+    btn.setAttribute('aria-pressed', is3d ? 'true' : 'false');
+    btn.classList.toggle('on', is3d);
+    $('avLabel').textContent = is3d ? '3D' : 'Photo';
+    btn.title = is3d ? 'Using the 3D avatar. Click for the photo avatar.' : 'Using the photo avatar. Click for the 3D avatar.';
+  }
+  function switchAvatar(mode) {
+    if (mode === avatarMode) return;
+    avatarMode = mode;
+    try { localStorage.setItem(AV_KEY, mode); } catch (e) {}
+    destroyAvatar(); updateAvToggle(); buildAvatar();
   }
 
   /* ---------- UI helpers ---------- */
@@ -511,9 +548,9 @@
       } catch (e) { stream = null; }
     }
     $('ended').hidden = true; $('callUI').hidden = false; root.dataset.phase = 'call';
-    $('avatar').innerHTML = '';
+    destroyAvatar();
     inCall = true; startedAt = Date.now(); busy = false;
-    buildAvatar();
+    updateAvToggle(); buildAvatar();
     logEl.innerHTML = ''; history = []; litenoted = false; capAI.textContent = ''; capYou.textContent = '';
     tickT = setInterval(function () { $('timer').textContent = fmt(Math.floor((Date.now() - startedAt) / 1000)); }, 1000);
     if (micOk && stream) startMeter();
@@ -540,8 +577,7 @@
     var secs = Math.floor((Date.now() - startedAt) / 1000);
     $('endedTime').textContent = 'Call length ' + fmt(secs) + '. Thanks for stopping by.';
     $('callUI').hidden = true; $('ended').hidden = false; root.dataset.phase = 'ended';
-    if (impl && impl.destroy) impl.destroy(); impl = null; mainTile.classList.remove('photo');
-    $('avatar').innerHTML = '';
+    destroyAvatar();
     streaming = false; busy = false; speakQ = []; speakingNow = false;
   }
 
@@ -562,6 +598,7 @@
     else if (stream || micGranted) { srFails = 0; listenSoon(100); }
   }
   micBtn.addEventListener('click', toggleMic);
+  $('avBtn').addEventListener('click', function () { switchAvatar(avatarMode === '3d' ? 'photo' : '3d'); });
   var talkBtn = $('talkBtn');
   talkBtn.addEventListener('click', function () { srFails = 0; talkBtn.hidden = true; startListening(); });   // starting inside a tap always counts as a user gesture
   setInterval(function () {                                           // offered on iPhone whenever it is my turn, and anywhere automatic listening keeps failing

@@ -27,3 +27,9 @@ npx --yes @gltf-transform/cli webp tmp.glb jayson.glb
 
 ## Privacy
 Anything in this folder becomes public once pushed to GitHub Pages.
+
+## Current model: `jayson.glb`
+Generated with MetaPerson Creator (Avatar SDK) from the portfolio photo, exported as GLB with the **free export**, so its licence is **trial / non-commercial only**
+(see the EULA shown at export time). It has the 51 ARKit face shapes, eyes, teeth and a 73-bone skeleton, in a T-pose; the player lowers the arms
+(`avatarArmDrop`) and frames head and shoulders (`avatarExtent`, `avatarLookDown`). The face shapes were stored sparsely to cut the size from 11.9 to 8.5 MB.
+Replace the file and the config in `call.html` to change the model. The viewer can switch Photo / 3D with the button in the call controls.

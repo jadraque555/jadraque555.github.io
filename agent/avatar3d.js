@@ -86,6 +86,7 @@ export async function createAvatar3D(container, opts = {}) {
   const vrm = isVRM ? gltf.userData.vrm : null;
   if (isVRM && !vrm) throw new Error('not a VRM file');
   const model = vrm ? vrm.scene : gltf.scene;
+  let armsLowered = false;
   if (vrm) {
     VRMUtils.removeUnnecessaryVertices(model);
     VRMUtils.combineSkeletons(model);
@@ -93,6 +94,15 @@ export async function createAvatar3D(container, opts = {}) {
     const hum = vrm.humanoid;                                         // arms down instead of a T-pose
     const L = hum.getNormalizedBoneNode('leftUpperArm'), R = hum.getNormalizedBoneNode('rightUpperArm');
     if (L) L.rotation.z = -1.2; if (R) R.rotation.z = 1.2;
+  }
+  if (!vrm) {                                                         // T-pose export (arms straight out): swing the upper arms down
+    const drop = opts.armDrop != null ? opts.armDrop : 1.35, ax = opts.armAxis || 'x';
+    const L = findBone(model, /(^|[^a-z])LeftArm$|mixamorigLeftArm$/i), R = findBone(model, /(^|[^a-z])RightArm$|mixamorigRightArm$/i);
+    if (L && R && drop) {
+      const turn = (b, a) => { const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(ax === 'x' ? 1 : 0, ax === 'y' ? 1 : 0, ax === 'z' ? 1 : 0), a); b.quaternion.premultiply(q); };
+      turn(L, ax === 'x' ? drop : -drop); turn(R, drop);          // about the bone's X axis both arms swing the same way
+      armsLowered = true;
+    }
   }
   model.traverse((o) => { if (o.isMesh) { o.frustumCulled = false; } });
   const root = new THREE.Group();
@@ -225,7 +235,7 @@ export async function createAvatar3D(container, opts = {}) {
   raf = requestAnimationFrame(frame);
 
   return {
-    info: { format: fmt, morphTargets: entries.size, fullBody, hasHeadBone: !!headBone, vrm: !!vrm, mapped: ['jawopen', 'mouthsmilel', 'eyeblinkl', 'browinnerup', 'visemeaa'].filter(has) },
+    info: { armsLowered, format: fmt, morphTargets: entries.size, fullBody, hasHeadBone: !!headBone, vrm: !!vrm, mapped: ['jawopen', 'mouthsmilel', 'eyeblinkl', 'browinnerup', 'visemeaa'].filter(has) },
     setState: (s) => { state = s; speaking = s === 'speaking'; },
     setEmotion: (e) => { emotion = (ARKIT[e] ? e : 'neutral'); },
     pulse: (s) => { energy = Math.max(energy, clamp(s == null ? 1 : s, 0, 1)); pulseSeq++; },

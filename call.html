@@ -66,6 +66,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         <span>Chat</span>
       </button>
+      <button type="button" class="ctl" id="avBtn" aria-pressed="false" title="Switch avatar" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5M12 12v10"/></svg>
+        <span id="avLabel">Photo</span>
+      </button>
       <button type="button" class="ctl" id="muteBtn" aria-pressed="false" title="Silence the AI's voice">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 6a9 9 0 0 1 0 12"/></svg>
         <span>Voice</span>
@@ -88,7 +92,7 @@
     </div>
   </main>
 </div>
-<script>window.AGENT_CONFIG={apiUrl:"https://portfolio-agent-api-gules.vercel.app/api/chat",avatarPhoto:"img/avatar-portrait.jpg",avatarBg:"img/avatar-office.jpg",avatarMatte:"img/avatar-matte.png",avatarModel:""};</script>
+<script>window.AGENT_CONFIG={apiUrl:"https://portfolio-agent-api-gules.vercel.app/api/chat",avatarPhoto:"img/avatar-portrait.jpg",avatarBg:"img/avatar-office.jpg",avatarMatte:"img/avatar-matte.png",avatarModel:"agent/models/jayson.glb",avatarDefault:"photo",avatarExtent:0.34,avatarLookDown:0.14,avatarArmDrop:1.35};</script>
 <script src="agent/avatar.js"></script>
 <script src="agent/avatarPhoto.js"></script>
 <script src="agent/call.js"></script>

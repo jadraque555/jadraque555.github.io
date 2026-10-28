@@ -93,3 +93,11 @@ body.call{overflow:hidden;background:#05060a}
 .tile.main.photo .nameplate{z-index:3}
 
 .talkbtn{top:auto;bottom:118px;transform:translateX(-50%);left:50%;z-index:8;background:#d9e0ff;box-shadow:0 14px 40px -8px #000,0 0 0 8px #d9e0ff33}
+
+/* 3D avatar: fills the tile in front of the same office backdrop as the photo avatar */
+.tile.main.model3d{background:#0b0d16 url(../img/avatar-office.jpg) center/cover no-repeat}
+.tile.main.model3d .avatar-wrap{position:absolute;inset:0;width:auto;height:auto;max-width:none;aspect-ratio:auto;margin:0;filter:none}
+.avatar3d.fill{inset:0;-webkit-mask-image:none;mask-image:none}
+.tile.main.loading3d::after{content:"Loading 3D avatar\2026";position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);padding:8px 16px;border-radius:99px;background:#0b0d16cc;color:var(--mut);font:500 .85rem Inter;z-index:3}
+#avBtn.on svg{background:#d9e0ff;color:#10131c}
+#avBtn:not(.on) span{color:var(--mut)}
