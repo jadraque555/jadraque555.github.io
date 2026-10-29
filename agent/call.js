@@ -573,6 +573,7 @@
     clearInterval(tickT); cancelAnimationFrame(rafId);
     if (outCtx) { try { outCtx.close(); } catch (e) {} outCtx = null; playHead = 0; liveSrc = []; }
     if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+    if (typeof camOff === 'function') camOff();
     if (actx) { try { actx.close(); } catch (e) {} actx = null; }
     var secs = Math.floor((Date.now() - startedAt) / 1000);
     $('endedTime').textContent = 'Call length ' + fmt(secs) + '. Thanks for stopping by.';
@@ -598,6 +599,23 @@
     else if (stream || micGranted) { srFails = 0; listenSoon(100); }
   }
   micBtn.addEventListener('click', toggleMic);
+  /* optional camera: shown only to the visitor, in the "You" tile. Nothing is recorded or uploaded; leaving the call stops it. */
+  var camBtn = $('camBtn'), selfVideo = $('selfVideo'), camStream = null;
+  function camOff() {
+    if (camStream) { camStream.getTracks().forEach(function (t) { t.stop(); }); camStream = null; }
+    selfVideo.srcObject = null; selfVideo.hidden = true; selfTile.classList.remove('cam');
+    camBtn.classList.remove('on'); camBtn.setAttribute('aria-pressed', 'false'); $('camLabel').textContent = 'Camera';
+  }
+  function camOn() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { $('camLabel').textContent = 'No camera'; return; }
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false }).then(function (s) {
+      if (!inCall) { s.getTracks().forEach(function (t) { t.stop(); }); return; }
+      camStream = s; selfVideo.srcObject = s; selfVideo.hidden = false; selfTile.classList.add('cam');
+      var p = selfVideo.play(); if (p && p.catch) p.catch(function () {});
+      camBtn.classList.add('on'); camBtn.setAttribute('aria-pressed', 'true'); $('camLabel').textContent = 'Camera on';
+    }).catch(function () { $('camLabel').textContent = 'Blocked'; setTimeout(function () { if (!camStream) $('camLabel').textContent = 'Camera'; }, 2500); });
+  }
+  camBtn.addEventListener('click', function () { if (camStream) camOff(); else camOn(); });
   $('avBtn').addEventListener('click', function () { switchAvatar(avatarMode === '3d' ? 'photo' : '3d'); });
   var talkBtn = $('talkBtn');
   talkBtn.addEventListener('click', function () { srFails = 0; talkBtn.hidden = true; startListening(); });   // starting inside a tap always counts as a user gesture

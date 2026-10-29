@@ -99,5 +99,13 @@ body.call{overflow:hidden;background:#05060a}
 .tile.main.model3d .avatar-wrap{position:absolute;inset:0;width:auto;height:auto;max-width:none;aspect-ratio:auto;margin:0;filter:none}
 .avatar3d.fill{inset:0;-webkit-mask-image:none;mask-image:none}
 .tile.main.loading3d::after{content:"Loading 3D avatar\2026";position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);padding:8px 16px;border-radius:99px;background:#0b0d16cc;color:var(--mut);font:500 .85rem Inter;z-index:3}
+/* optional self camera in the "You" tile: local preview only, mirrored like a video call */
+.selfvideo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#141828}
+.tile.self.cam{width:176px;height:132px}
+.tile.self.cam .selfavatar,.tile.self.cam #meter{display:none}
+.tile.self.cam .nameplate{z-index:2}
+#camBtn.on svg{background:#d9e0ff;color:#10131c}
+#camBtn .slash{opacity:0}
+@media(max-width:720px){.tile.self.cam{width:104px;height:78px}}
 #avBtn.on svg{background:#d9e0ff;color:#10131c}
 #avBtn:not(.on) span{color:var(--mut)}
